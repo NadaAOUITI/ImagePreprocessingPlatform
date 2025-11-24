@@ -50,17 +50,19 @@ uploads/*
 processed/*
 !processed/.gitkeep
 
-# Node.js (for future frontend)
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .npm
 .yarn-integrity
+package-lock.json
 
 # React build
-frontend/build/
-frontend/dist/
+build/
+dist/
+.next/
 
 # Logs
 *.log
