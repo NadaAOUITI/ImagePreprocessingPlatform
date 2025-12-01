@@ -3,3 +3,4 @@ Flask-CORS==4.0.0
 opencv-python==4.10.0.84
 numpy>=1.21.0
 Werkzeug==2.3.7
+Pillow>=9.0.0

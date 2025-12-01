@@ -1,31 +1,37 @@
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
 import os
-from werkzeug.utils import secure_filename
+from config.settings import Config
+from routes.upload_routes import upload_bp
 
-app = Flask(__name__)
-CORS(app)
-
-UPLOAD_FOLDER = '../uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-@app.route('/')
-def home():
-    return jsonify({'message': 'Image Preprocessing Platform - Basic Upload Only', 'status': 'incomplete'})
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
     
-    file = request.files['file']
-    if file and file.filename:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
-        return jsonify({'message': 'Upload successful', 'filename': filename})
+    # Configuration CORS
+    CORS(app)
     
-    return jsonify({'error': 'Invalid file'}), 400
+    # Créer les dossiers nécessaires
+    os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(Config.PROCESSED_FOLDER, exist_ok=True)
+    
+    # Enregistrer les blueprints
+    app.register_blueprint(upload_bp, url_prefix='/api')
+    
+    @app.route('/')
+    def home():
+        return jsonify({
+            'message': 'Image Preprocessing Platform API',
+            'version': '1.0',
+            'endpoints': {
+                'upload': '/api/upload',
+                'gallery': '/api/gallery',
+                'image': '/api/image/<filename>'
+            }
+        })
+    
+    return app
 
 if __name__ == '__main__':
+    app = create_app()
     app.run(debug=True, port=5000)
