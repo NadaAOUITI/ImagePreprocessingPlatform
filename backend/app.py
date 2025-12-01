@@ -3,6 +3,7 @@ from flask_cors import CORS
 import os
 from config.settings import Config
 from routes.upload_routes import upload_bp
+from routes.processing_routes import processing_bp
 
 def create_app():
     app = Flask(__name__)
@@ -17,6 +18,7 @@ def create_app():
     
     # Enregistrer les blueprints
     app.register_blueprint(upload_bp, url_prefix='/api')
+    app.register_blueprint(processing_bp, url_prefix='/api')
     
     @app.route('/')
     def home():
@@ -26,7 +28,9 @@ def create_app():
             'endpoints': {
                 'upload': '/api/upload',
                 'gallery': '/api/gallery',
-                'image': '/api/image/<filename>'
+                'image': '/api/image/<filename>',
+                'process': '/api/process',
+                'operations': '/api/operations'
             }
         })
     
