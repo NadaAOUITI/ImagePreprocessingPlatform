@@ -25,53 +25,7 @@ ImagePreprocessingPlatform/
 └── processed/            # Processed images
 ```
 
-## Backend API Endpoints
 
-### POST /api/upload
-Upload multiple image files
-- **Body**: FormData with 'files' field (multiple files supported)
-- **Response**: 
-```json
-{
-  "message": "2 fichier(s) uploadé(s) avec succès",
-  "successful_uploads": [...],
-  "failed_uploads": [...],
-  "total_uploaded": 2
-}
-```
-
-### GET /api/gallery
-Get uploaded images with metadata
-- **Response**: `{'images': [...], 'total': 5}`
-
-### GET /api/image/<filename>
-Retrieve specific uploaded image
-
-### GET /api/image/<filename>/info
-Get detailed image information
-- **Response**: `{'width': 1920, 'height': 1080, 'format': 'JPEG', 'aspect_ratio': 1.78, ...}`
-
-### DELETE /api/image/<filename>
-Delete uploaded image
-
-### POST /process (TODO)
-Process an uploaded image
-- **Body**: `{'filename': 'image.jpg', 'operation': 'grayscale'}`
-- **Response**: `{'message': 'Processing complete', 'output_file': 'processed_image.jpg'}`
-
-### GET /operations (TODO)
-Get available processing operations
-- **Response**: Array of operations with name and label
-
-### GET /download/<filename> (TODO)
-Download processed image file
-
-## Available Operations
-- `grayscale`: Convert to grayscale
-- `blur`: Gaussian blur
-- `threshold`: Binary threshold
-- `edge_detection`: Canny edge detection (to implement)
-- `histogram_eq`: Histogram equalization (to implement)
 
 ## Setup Backend
 ```bash
@@ -103,13 +57,7 @@ curl http://localhost:5000/api/image/filename.jpg/info
 
 See `TESTING.md` for detailed testing instructions.
 
-## Frontend Requirements
-The React frontend should:
-1. Upload images via /upload endpoint
-2. Display original and processed images side by side
-3. Provide UI controls for different operations
-4. Allow downloading processed images
-5. Handle errors gracefully
+
 
 ## **Actors**
 
@@ -161,13 +109,7 @@ The React frontend should:
 - `GET /api/image/<filename>` - Get full resolution image
 - `GET /api/image/<filename>/info` - Get detailed image information
 
-**Frontend Responsibilities:**
-- Image display components and UI
-- Thumbnail generation using Canvas/CSS
-- Zoom and pan functionality
-- Side-by-side comparison layout
-- Split-view drag comparison
-- Image loading and caching optimization
+
 
 ---
 
