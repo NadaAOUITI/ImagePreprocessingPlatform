@@ -16,25 +16,81 @@ class OperationsService:
                     'type': {'type': 'select', 'default': 'binary', 'options': ['binary', 'adaptive']}
                 }
             },
-            'blur': {
-                'name': 'Flou gaussien',
+            # === FILTRES DE FLOU ===
+            'blur_gaussian': {
+                'name': 'Flou Gaussien',
                 'description': 'Applique un flou gaussien',
                 'parameters': {
                     'kernel_size': {'type': 'int', 'default': 5, 'min': 3, 'max': 31, 'step': 2}
                 }
             },
-            'sharpen': {
-                'name': 'Accentuation',
-                'description': 'Accentue les détails de l\'image',
+            'blur_median': {
+                'name': 'Flou Médian',
+                'description': 'Applique un flou médian (réduit le bruit)',
+                'parameters': {
+                    'kernel_size': {'type': 'int', 'default': 5, 'min': 3, 'max': 31, 'step': 2}
+                }
+            },
+            'blur_average': {
+                'name': 'Flou Moyenneur',
+                'description': 'Applique un flou moyenneur',
+                'parameters': {
+                    'kernel_size': {'type': 'int', 'default': 5, 'min': 3, 'max': 31, 'step': 2}
+                }
+            },
+            # === FILTRES DE SHARPENING ===
+            'sharpen_kernel': {
+                'name': 'Accentuation Kernel',
+                'description': 'Accentue avec kernel classique',
                 'parameters': {}
             },
-            'edge_detection': {
-                'name': 'Détection de contours',
+            'sharpen_unsharp': {
+                'name': 'Unsharp Mask',
+                'description': 'Accentuation par masque flou',
+                'parameters': {
+                    'strength': {'type': 'float', 'default': 1.5, 'min': 0.5, 'max': 3.0}
+                }
+            },
+            'sharpen_laplacian': {
+                'name': 'Laplacien + Original',
+                'description': 'Accentuation par Laplacien',
+                'parameters': {}
+            },
+            'sharpen_highboost': {
+                'name': 'High-Boost Filter',
+                'description': 'Filtre d\'amplification des hautes fréquences',
+                'parameters': {
+                    'boost_factor': {'type': 'float', 'default': 2.0, 'min': 1.0, 'max': 5.0}
+                }
+            },
+            # === FILTRES DE DÉTECTION DE CONTOURS ===
+            'edge_canny': {
+                'name': 'Détection Canny',
                 'description': 'Détecte les contours avec Canny',
                 'parameters': {
                     'low': {'type': 'int', 'default': 50, 'min': 0, 'max': 255},
                     'high': {'type': 'int', 'default': 150, 'min': 0, 'max': 255}
                 }
+            },
+            'edge_roberts': {
+                'name': 'Filtre de Roberts',
+                'description': 'Détection de contours avec Roberts',
+                'parameters': {}
+            },
+            'edge_sobel': {
+                'name': 'Filtre de Sobel',
+                'description': 'Détection de contours avec Sobel',
+                'parameters': {}
+            },
+            'edge_prewitt': {
+                'name': 'Filtre de Prewitt',
+                'description': 'Détection de contours avec Prewitt',
+                'parameters': {}
+            },
+            'edge_laplacian': {
+                'name': 'Filtre Laplacien',
+                'description': 'Détection de contours avec Laplacien',
+                'parameters': {}
             },
             'resize': {
                 'name': 'Redimensionnement',
@@ -66,6 +122,11 @@ class OperationsService:
             'histogram_eq': {
                 'name': 'Égalisation d\'histogramme',
                 'description': 'Améliore le contraste',
+                'parameters': {}
+            },
+            'histogram_stretch': {
+                'name': 'Étirement d\'histogramme',
+                'description': 'Étire l\'histogramme pour utiliser toute la plage dynamique',
                 'parameters': {}
             },
             'extract_channel': {
