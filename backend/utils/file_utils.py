@@ -1,8 +1,7 @@
 import os
-import json
 from datetime import datetime
-from PIL import Image
 from config.settings import Config
+from services.upload_service import UploadService
 
 class FileUtils:
     @staticmethod
@@ -16,11 +15,18 @@ class FileUtils:
         for filename in os.listdir(Config.UPLOAD_FOLDER):
             if FileUtils._is_image_file(filename):
                 filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
-                metadata = FileUtils._get_file_metadata(filepath)
-                images.append({
-                    'filename': filename,
-                    'metadata': metadata
-                })
+                # Réutiliser la méthode existante (DRY)
+                metadata = UploadService._extract_metadata(filepath)
+                if metadata:
+                    # Ajouter le timestamp
+                    metadata['upload_time'] = datetime.fromtimestamp(
+                        os.path.getmtime(filepath)
+                    ).isoformat()
+                    
+                    images.append({
+                        'filename': filename,
+                        'metadata': metadata
+                    })
         
         return sorted(images, key=lambda x: x['metadata']['upload_time'], reverse=True)
     
@@ -38,22 +44,3 @@ class FileUtils:
         return ('.' in filename and 
                 filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS)
     
-    @staticmethod
-    def _get_file_metadata(filepath):
-        """Récupère les métadonnées d'un fichier"""
-        try:
-            stat = os.stat(filepath)
-            with Image.open(filepath) as img:
-                return {
-                    'width': img.width,
-                    'height': img.height,
-                    'format': img.format,
-                    'mode': img.mode,
-                    'size_bytes': stat.st_size,
-                    'upload_time': datetime.fromtimestamp(stat.st_mtime).isoformat()
-                }
-        except Exception:
-            return {
-                'size_bytes': os.path.getsize(filepath),
-                'upload_time': datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
-            }

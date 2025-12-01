@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, send_from_directory
 from services.upload_service import UploadService
+from services.image_service import ImageService
 from utils.file_utils import FileUtils
 from utils.error_handlers import handle_upload_error, handle_file_not_found
 from config.settings import Config
@@ -61,6 +62,18 @@ def delete_image(filename):
     try:
         if FileUtils.delete_image(filename):
             return jsonify({'message': 'Image supprimée avec succès'})
+        else:
+            return handle_file_not_found()
+    except Exception as e:
+        return handle_upload_error(e)
+
+@upload_bp.route('/image/<filename>/info', methods=['GET'])
+def get_image_info(filename):
+    """Récupérer les informations détaillées d'une image"""
+    try:
+        info = ImageService.get_image_info(filename)
+        if info:
+            return jsonify(info)
         else:
             return handle_file_not_found()
     except Exception as e:

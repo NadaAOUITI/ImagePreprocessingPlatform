@@ -13,9 +13,10 @@ ImagePreprocessingPlatform/
 │   │   └── settings.py      # Configuration
 │   ├── services/
 │   │   ├── upload_service.py   # Upload logic
-│   │   └── validation_service.py # File validation
+│   │   ├── validation_service.py # File validation
+│   │   └── image_service.py    # Image processing (thumbnails, resize)
 │   ├── routes/
-│   │   └── upload_routes.py    # Upload endpoints
+│   │   └── upload_routes.py    # Upload & display endpoints
 │   └── utils/
 │       ├── file_utils.py       # File utilities
 │       └── error_handlers.py   # Error handling
@@ -45,6 +46,10 @@ Get uploaded images with metadata
 
 ### GET /api/image/<filename>
 Retrieve specific uploaded image
+
+### GET /api/image/<filename>/info
+Get detailed image information
+- **Response**: `{'width': 1920, 'height': 1080, 'format': 'JPEG', 'aspect_ratio': 1.78, ...}`
 
 ### DELETE /api/image/<filename>
 Delete uploaded image
@@ -87,6 +92,15 @@ curl http://localhost:5000/api/gallery
 curl -X POST -F "files=@image.jpg" http://localhost:5000/api/upload
 ```
 
+## Testing Display Functionality
+```bash
+# Run display tests (info endpoint)
+python test_display.py
+
+# Manual info testing
+curl http://localhost:5000/api/image/filename.jpg/info
+```
+
 See `TESTING.md` for detailed testing instructions.
 
 ## Frontend Requirements
@@ -119,12 +133,12 @@ The React frontend should:
 - ✅ Support multiple images upload and gallery view.
 
 **Backend Implementation Status:** ✅ COMPLETED
-- Modular architecture with services, routes, and utilities
-- Multiple file upload support (max 10 files, 16MB each)
-- Strict validation (format, size, image integrity)
-- Comprehensive error handling
-- Gallery endpoint with metadata
-- RESTful API endpoints
+
+**Backend Endpoints:**
+- `POST /api/upload` - Upload multiple images
+- `GET /api/gallery` - Get list of uploaded images with metadata
+- `GET /api/image/<filename>` - Retrieve specific image
+- `DELETE /api/image/<filename>` - Delete image
 
 ---
 
@@ -138,6 +152,22 @@ The React frontend should:
 - Implement side-by-side comparison: original vs processed image.
 - Add **zoom functionality** for detailed viewing.
 - Optionally implement **split-view drag comparison**.
+
+**Backend Implementation Status:** ✅ COMPLETED (Minimal backend support)
+- Image serving and metadata endpoints
+- **Note:** This task is primarily FRONTEND work - thumbnails and resizing handled by frontend
+
+**Backend Endpoints:**
+- `GET /api/image/<filename>` - Get full resolution image
+- `GET /api/image/<filename>/info` - Get detailed image information
+
+**Frontend Responsibilities:**
+- Image display components and UI
+- Thumbnail generation using Canvas/CSS
+- Zoom and pan functionality
+- Side-by-side comparison layout
+- Split-view drag comparison
+- Image loading and caching optimization
 
 ---
 
