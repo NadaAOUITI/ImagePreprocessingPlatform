@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import base64
 import os
-from config. settings import Config
+from config.settings import Config
 from services.processing_service import ProcessingService  # ✨ Déplacé en haut
 
 advanced_bp = Blueprint('advanced', __name__)
@@ -18,7 +18,7 @@ def preview_transformation():
         operation = data.get('operation')
         params = data.get('params', {})
 
-        filepath = os.path.join(Config. UPLOAD_FOLDER, filename)
+        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
         if not os.path.exists(filepath):
             return jsonify({'error': 'File not found'}), 404
 
@@ -30,7 +30,7 @@ def preview_transformation():
         result = ProcessingService.apply_operation(img, operation, params)
 
         # Convert to base64 for preview
-        _, buffer = cv2.imencode('. png', result)
+        _, buffer = cv2.imencode('.png', result)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
 
         return jsonify({
