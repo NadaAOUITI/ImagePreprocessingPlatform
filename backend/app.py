@@ -5,6 +5,7 @@ from config.settings import Config
 from routes.upload_routes import upload_bp
 from routes.processing_routes import processing_bp
 from routes.advanced_routes import advanced_bp
+from routes.download import download_bp
 
 
 def create_app():
@@ -22,6 +23,9 @@ def create_app():
     app.register_blueprint(upload_bp, url_prefix='/api')
     app.register_blueprint(processing_bp, url_prefix='/api')
     app.register_blueprint(advanced_bp, url_prefix='/api')
+    # after creating your Flask app:
+    # ✅ FIXED: Add url_prefix to match other blueprints (routes in download.py now have no /api prefix)
+    app.register_blueprint(download_bp, url_prefix='/api')
 
     @app.route('/')
     def home():
