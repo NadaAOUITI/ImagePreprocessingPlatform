@@ -58,20 +58,27 @@ def test_upload_image():
 
     try:
         with open(test_image_path, 'rb') as f:
-            files = {'file': (test_image_path, f, 'image/jpeg')}
+            files = {'files': (test_image_path, f, 'image/jpeg')}
             response = requests.post(f"{BASE_URL}/upload", files=files)
 
         print(f"✅ Status Code: {response.status_code}")
         print(f"📄 Response: {json.dumps(response.json(), indent=2)}")
 
         if response.status_code == 200:
-            return response.json().get('filename')
+            data = response.json()
+
+            # ✨ FIX: Extraire le nom de fichier depuis successful_uploads
+            if data.get('successful_uploads') and len(data['successful_uploads']) > 0:
+                filename = data['successful_uploads'][0].get('filename')
+                print(f"✅ Uploaded filename: {filename}")
+                return filename
+            elif data.get('filename'):
+                return data.get('filename')
+
     except Exception as e:
         print(f"❌ Error:  {e}")
 
     return None
-
-
 def test_gallery():
     """Test gallery endpoint"""
     print_header("Testing Gallery")

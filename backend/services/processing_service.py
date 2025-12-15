@@ -38,7 +38,138 @@ class ProcessingService:
             suffix_parts.append(f"{params['channel']}")
         
         return f"_{'_'.join(suffix_parts)}" if suffix_parts else ""
-    
+        # ✨ NOUVEAU: Méthode pour les fonctionnalités avancées (preview & presets)
+
+    @staticmethod
+    def apply_operation(image, operation, params):
+        """
+        Apply a single processing operation to an image (for preview and presets)
+
+        Args:
+            image:  numpy array (cv2 image) - NOT a file path
+            operation: string name of operation
+            params: dict of parameters for the operation
+
+        Returns:
+            Processed image as numpy array
+        """
+        img = image.copy()
+
+        try:
+            # Map new operation names to implementations
+            if operation == 'grayscale':
+                if len(img.shape) == 3:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    # Convert back to 3 channels for consistency
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'blur' or operation == 'gaussian_blur':
+                kernel = params.get('kernel', 5) if params else 5
+                # Ensure kernel is odd
+                kernel = kernel if kernel % 2 == 1 else kernel + 1
+                img = cv2.GaussianBlur(img, (kernel, kernel), 0)
+
+            elif operation == 'sharpen':
+                strength = params.get('strength', 1.0) if params else 1.0
+                kernel = np.array([[-1, -1, -1],
+                                   [-1, 9, -1],
+                                   [-1, -1, -1]], dtype=np.float32) * strength
+                img = cv2.filter2D(img, -1, kernel)
+
+            elif operation == 'canny':
+                threshold1 = params.get('threshold1', 100) if params else 100
+                threshold2 = params.get('threshold2', 200) if params else 200
+                if len(img.shape) == 3:
+                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray = img
+                edges = cv2.Canny(gray, threshold1, threshold2)
+                img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'histogram_equalization':
+                if len(img.shape) == 3:
+                    # Convert to YUV
+                    yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+                    # Equalize the Y channel
+                    yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+                    img = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+                else:
+                    img = cv2.equalizeHist(img)
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'bilateral_filter':
+                d = params.get('d', 9) if params else 9
+                sigmaColor = params.get('sigmaColor', 75) if params else 75
+                sigmaSpace = params.get('sigmaSpace', 75) if params else 75
+                img = cv2.bilateralFilter(img, d, sigmaColor, sigmaSpace)
+
+            elif operation == 'adaptive_threshold':
+                blockSize = params.get('blockSize', 11) if params else 11
+                C = params.get('C', 2) if params else 2
+                if len(img.shape) == 3:
+                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray = img
+                thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                               cv2.THRESH_BINARY, blockSize, C)
+                img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'median_blur':
+                kernel = params.get('kernel', 5) if params else 5
+                kernel = kernel if kernel % 2 == 1 else kernel + 1
+                img = cv2.medianBlur(img, kernel)
+
+            elif operation == 'rotate':
+                angle = params.get('angle', 90) if params else 90
+                if angle == 90:
+                    img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+                elif angle == 180:
+                    img = cv2.rotate(img, cv2.ROTATE_180)
+                elif angle == 270:
+                    img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                else:
+                    # Custom angle
+                    h, w = img.shape[:2]
+                    center = (w // 2, h // 2)
+                    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+                    img = cv2.warpAffine(img, M, (w, h))
+
+            elif operation == 'flip':
+                direction = params.get('direction', 'horizontal') if params else 'horizontal'
+                if direction == 'horizontal':
+                    img = cv2.flip(img, 1)
+                elif direction == 'vertical':
+                    img = cv2.flip(img, 0)
+                elif direction == 'both':
+                    img = cv2.flip(img, -1)
+
+            elif operation == 'resize':
+                width = params.get('width') if params else None
+                height = params.get('height') if params else None
+                if width and height:
+                    img = cv2.resize(img, (int(width), int(height)))
+
+            elif operation == 'brightness':
+                value = params.get('value', 30) if params else 30
+                hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+                h, s, v = cv2.split(hsv)
+                v = cv2.add(v, value)
+                v = np.clip(v, 0, 255)
+                final_hsv = cv2.merge((h, s, v))
+                img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+
+            elif operation == 'contrast':
+                value = params.get('value', 1.5) if params else 1.5
+                img = cv2.convertScaleAbs(img, alpha=value, beta=0)
+
+            else:
+                raise ValueError(f"Unknown operation: {operation}")
+
+            return img
+
+        except Exception as e:
+            raise Exception(f"Error applying operation '{operation}': {str(e)}")
+
     @staticmethod
     def process_image(filename, operation, params=None):
         """Traite une image avec l'opération spécifiée"""
@@ -63,7 +194,95 @@ class ProcessingService:
                 
         except Exception as e:
             return None, str(e)
-    
+        # ✨ AJOUT:  Nouvelle méthode pour les fonctionnalités avancées
+
+    @staticmethod
+    def apply_operation(image, operation, params):
+        """
+        Apply a single processing operation to an image (for preview and presets)
+
+        Args:
+            image: numpy array (cv2 image) - NOT a file path
+            operation: string name of operation
+            params: dict of parameters for the operation
+
+        Returns:
+            Processed image as numpy array
+        """
+        img = image.copy()
+
+        try:
+            # Map new operation names to existing methods
+            if operation == 'grayscale':
+                if len(img.shape) == 3:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    # Convert back to 3 channels for consistency
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'blur' or operation == 'gaussian_blur':
+                kernel = params.get('kernel', 5)
+                # Ensure kernel is odd
+                kernel = kernel if kernel % 2 == 1 else kernel + 1
+                img = cv2.GaussianBlur(img, (kernel, kernel), 0)
+
+            elif operation == 'sharpen':
+                strength = params.get('strength', 1.0)
+                kernel = np.array([[-1, -1, -1],
+                                   [-1, 9, -1],
+                                   [-1, -1, -1]]) * strength
+                img = cv2.filter2D(img, -1, kernel)
+
+            elif operation == 'canny':
+                threshold1 = params.get('threshold1', 100)
+                threshold2 = params.get('threshold2', 200)
+                if len(img.shape) == 3:
+                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray = img
+                edges = cv2.Canny(gray, threshold1, threshold2)
+                img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'histogram_equalization':
+                if len(img.shape) == 3:
+                    # Convert to YUV
+                    yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+                    # Equalize the Y channel
+                    yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+                    img = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+                else:
+                    img = cv2.equalizeHist(img)
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'bilateral_filter':
+                d = params.get('d', 9)
+                sigmaColor = params.get('sigmaColor', 75)
+                sigmaSpace = params.get('sigmaSpace', 75)
+                img = cv2.bilateralFilter(img, d, sigmaColor, sigmaSpace)
+
+            elif operation == 'adaptive_threshold':
+                blockSize = params.get('blockSize', 11)
+                C = params.get('C', 2)
+                if len(img.shape) == 3:
+                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                else:
+                    gray = img
+                thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                               cv2.THRESH_BINARY, blockSize, C)
+                img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+
+            elif operation == 'median_blur':
+                kernel = params.get('kernel', 5)
+                kernel = kernel if kernel % 2 == 1 else kernel + 1
+                img = cv2.medianBlur(img, kernel)
+
+            else:
+                raise ValueError(f"Unknown operation: {operation}")
+
+            return img
+
+        except Exception as e:
+            raise Exception(f"Error applying operation '{operation}': {str(e)}")
+
     @staticmethod
     def _apply_operation(input_path, output_path, operation, params):
         """Applique l'opération spécifique"""

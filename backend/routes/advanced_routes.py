@@ -3,7 +3,8 @@ import cv2
 import numpy as np
 import base64
 import os
-from config.settings import Config  # Changed from UPLOAD_FOLDER to Config
+from config. settings import Config
+from services.processing_service import ProcessingService  # ✨ Déplacé en haut
 
 advanced_bp = Blueprint('advanced', __name__)
 
@@ -12,14 +13,12 @@ advanced_bp = Blueprint('advanced', __name__)
 def preview_transformation():
     """Real-time preview of transformations without saving"""
     try:
-        from services.processing_service import ProcessingService
-
         data = request.json
         filename = data.get('filename')
         operation = data.get('operation')
         params = data.get('params', {})
 
-        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)  # Use Config.UPLOAD_FOLDER
+        filepath = os.path.join(Config. UPLOAD_FOLDER, filename)
         if not os.path.exists(filepath):
             return jsonify({'error': 'File not found'}), 404
 
@@ -27,9 +26,8 @@ def preview_transformation():
         if img is None:
             return jsonify({'error': 'Failed to read image'}), 400
 
-        # Apply transformation based on operation
-        processor = ProcessingService()
-        result = processor.apply_operation(img, operation, params)
+        # ✅ FIX: Méthode statique directe (pas d'instanciation)
+        result = ProcessingService.apply_operation(img, operation, params)
 
         # Convert to base64 for preview
         _, buffer = cv2.imencode('. png', result)
@@ -40,7 +38,7 @@ def preview_transformation():
             'success': True
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error':  str(e)}), 500
 
 
 @advanced_bp.route('/histogram/<filename>', methods=['GET'])
@@ -51,7 +49,7 @@ def get_histogram(filename):
 
         channel = request.args.get('channel', 'all')
 
-        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)  # Use Config.UPLOAD_FOLDER
+        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
         if not os.path.exists(filepath):
             return jsonify({'error': 'File not found'}), 404
 
@@ -67,11 +65,11 @@ def detect_roi():
     try:
         from services.roi_service import detect_faces, detect_contours
 
-        data = request.json
+        data = request. json
         filename = data.get('filename')
         roi_type = data.get('type', 'faces')
 
-        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)  # Use Config.UPLOAD_FOLDER
+        filepath = os.path.join(Config. UPLOAD_FOLDER, filename)
         if not os.path.exists(filepath):
             return jsonify({'error': 'File not found'}), 404
 
@@ -80,7 +78,7 @@ def detect_roi():
         else:
             regions = detect_contours(filepath)
 
-        return jsonify({'regions': regions, 'success': True})
+        return jsonify({'regions':  regions, 'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -90,30 +88,30 @@ def get_presets():
     """Get available preprocessing presets"""
     presets = {
         'enhance_contrast': {
-            'name': 'Enhance Contrast',
+            'name':  'Enhance Contrast',
             'operations': [
                 {'type': 'histogram_equalization', 'params': {}},
-                {'type': 'sharpen', 'params': {'strength': 1.5}}
+                {'type': 'sharpen', 'params': {'strength':  1.5}}
             ]
         },
         'edge_detection': {
-            'name': 'Edge Detection',
+            'name':  'Edge Detection',
             'operations': [
-                {'type': 'grayscale', 'params': {}},
+                {'type':  'grayscale', 'params': {}},
                 {'type': 'gaussian_blur', 'params': {'kernel': 5}},
-                {'type': 'canny', 'params': {'threshold1': 100, 'threshold2': 200}}
+                {'type': 'canny', 'params':  {'threshold1': 100, 'threshold2': 200}}
             ]
         },
         'denoise': {
             'name': 'Denoise',
             'operations': [
-                {'type': 'bilateral_filter', 'params': {'d': 9, 'sigmaColor': 75, 'sigmaSpace': 75}}
+                {'type': 'bilateral_filter', 'params': {'d': 9, 'sigmaColor':  75, 'sigmaSpace': 75}}
             ]
         },
         'black_white': {
             'name': 'Black & White',
             'operations': [
-                {'type': 'grayscale', 'params': {}},
+                {'type':  'grayscale', 'params': {}},
                 {'type': 'adaptive_threshold', 'params': {'blockSize': 11, 'C': 2}}
             ]
         }
@@ -131,7 +129,7 @@ def apply_preset():
         filename = data.get('filename')
         preset_name = data.get('preset')
 
-        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)  # Use Config.UPLOAD_FOLDER
+        filepath = os. path.join(Config.UPLOAD_FOLDER, filename)
         if not os.path.exists(filepath):
             return jsonify({'error': 'File not found'}), 404
 
