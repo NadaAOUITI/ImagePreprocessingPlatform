@@ -132,17 +132,17 @@ See `TESTING.md` for detailed testing instructions.
 
 ---
 
-### **4. Advanced & Innovative Features**
+### ✅ **4. Advanced & Innovative Features**
 
 **Use Case:** Provide enhanced preprocessing and interactivity
 
 **Tasks:**
 
-- Real-time preview of transformations before applying.
-- Undo/Redo functionality for each operation.
-- Interactive histogram display (grayscale or per RGB channel).
-- Region of interest selection (e.g., faces, simple object contours).
-- Bonus: automated region detection or pre-processing presets.
+✅ Real-time preview of transformations before applying.
+✅ Undo/Redo functionality for each operation.
+✅ Interactive histogram display (grayscale or per RGB channel).
+✅ Region of interest selection (e.g., faces, simple object contours).
+✅ Bonus: automated region detection or pre-processing presets.
 
 ---
 
