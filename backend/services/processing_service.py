@@ -27,10 +27,7 @@ class ProcessingService:
         elif operation == 'resize':
             if 'width' in params and 'height' in params:
                 suffix_parts.append(f"{params['width']}x{params['height']}")
-        elif operation == 'sharpen_unsharp' and 'strength' in params:
-            suffix_parts.append(f"s{params['strength']}")
-        elif operation == 'sharpen_highboost' and 'boost_factor' in params:
-            suffix_parts.append(f"b{params['boost_factor']}")
+
         elif operation == 'edge_canny':
             if 'low' in params and 'high' in params:
                 suffix_parts.append(f"l{params['low']}h{params['high']}")
@@ -301,12 +298,10 @@ class ProcessingService:
             # Filtres de sharpening
             elif operation == 'sharpen_kernel':
                 return ProcessingService._sharpen_kernel(input_path, output_path)
-            elif operation == 'sharpen_unsharp':
-                return ProcessingService._sharpen_unsharp(input_path, output_path, params)
+
             elif operation == 'sharpen_laplacian':
                 return ProcessingService._sharpen_laplacian(input_path, output_path)
-            elif operation == 'sharpen_highboost':
-                return ProcessingService._sharpen_highboost(input_path, output_path, params)
+
             # Filtres de détection de contours
             elif operation == 'edge_canny':
                 return ProcessingService._edge_canny(input_path, output_path, params)
@@ -401,16 +396,7 @@ class ProcessingService:
         cv2.imwrite(output_path, sharpened)
         return True
     
-    @staticmethod
-    def _sharpen_unsharp(input_path, output_path, params):
-        """Unsharp mask"""
-        strength = params.get('strength', 1.5) if params else 1.5
-        img = cv2.imread(input_path)
-        blurred = cv2.GaussianBlur(img, (9, 9), 0)
-        sharpened = cv2.addWeighted(img, 1 + strength, blurred, -strength, 0)
-        cv2.imwrite(output_path, sharpened)
-        return True
-    
+
     @staticmethod
     def _sharpen_laplacian(input_path, output_path):
         """Laplacien + original"""
@@ -420,17 +406,7 @@ class ProcessingService:
         cv2.imwrite(output_path, sharpened)
         return True
     
-    @staticmethod
-    def _sharpen_highboost(input_path, output_path, params):
-        """High-boost filter"""
-        boost_factor = params.get('boost_factor', 2.0) if params else 2.0
-        img = cv2.imread(input_path)
-        blurred = cv2.GaussianBlur(img, (5, 5), 0)
-        high_freq = cv2.subtract(img, blurred)
-        sharpened = cv2.addWeighted(img, 1.0, high_freq, boost_factor, 0)
-        cv2.imwrite(output_path, sharpened)
-        return True
-    
+
     # ===== FILTRES DE DÉTECTION DE CONTOURS =====
     @staticmethod
     def _edge_canny(input_path, output_path, params):
