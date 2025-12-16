@@ -799,6 +799,38 @@ const getTraitementName = () => {
           <button onClick={() => navigate("/historique")}>
         Voir l'historique
       </button>
+
+      <Divider />
+<Typography variant="subtitle1">Filtres :</Typography>
+
+<Button
+  variant="contained"
+  onClick={() =>
+    navigate("/blur-filters", {
+  // state: {
+  //   image: imageSrc,
+  //   filename
+  // }
+})
+  }
+>
+  Blur filters
+</Button>
+
+<Button
+  variant="contained"
+  color="secondary"
+  onClick={() =>
+     navigate("/edge-filters", {
+  // state: {
+  //   image: imageSrc,
+  //   filename
+  // }
+  })}
+>
+  Edge Detection (Canny)
+</Button>
+
         </Grid>
       </Grid>
     </Container>

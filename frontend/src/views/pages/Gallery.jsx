@@ -13,8 +13,9 @@ const Gallery = () => {
 
   const { clearImages } = useImageStore();
 
-  const handleFiles = (e) => {
+  const handleFiles = async (e)  => {
     const files = Array.from(e.target.files);
+
     const valid = ["image/jpeg", "image/png", "image/bmp"];
 
     const validImages = files.filter((file) => valid.includes(file.type));
@@ -22,7 +23,15 @@ const Gallery = () => {
       alert("Veuillez choisir des images JPG, PNG ou BMP.");
       return;
     }
+  //   for (const file of files) {
+  //   // Upload backend
+  //   const response = await uploadImageToBackend(file);
 
+  //   addImages({
+  //     dataUrl: URL.createObjectURL(file),
+  //     name: response.filename  // NOM BACKEND
+  //   });
+  // }
     Promise.all(
       validImages.map(
         (file) =>
@@ -33,7 +42,24 @@ const Gallery = () => {
           })
       )
     ).then(addImages);
+
+ 
   };
+
+/**backend **/
+const uploadImageToBackend = async (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch("http://localhost:5000/upload", {
+    method: "POST",
+    body: formData
+  });
+
+  return await res.json();
+};
+
+
 
   /** ---------------- BUTTON STYLES ---------------- */
   const buttonStyle = {
