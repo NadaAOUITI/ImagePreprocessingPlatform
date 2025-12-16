@@ -238,6 +238,35 @@ def test_apply_preset(filename):
                 print(f"   Success: {data.get('success')}")
         except Exception as e:
             print(f"❌ Error for {preset}:  {e}")
+def test_contrast_brightness_preview(filename):
+    """Test contrast & brightness preview"""
+    print_header("Testing Contrast & Brightness Preview")
+
+    if not filename:
+        print("⚠️  No filename provided, skipping test")
+        return
+
+    payload = {
+        'filename': filename,
+        'operation': 'contrast_brightness',
+        'params': {
+            'contrast': 1.4,
+            'brightness': 30
+        }
+    }
+
+    try:
+        response = requests.post(f"{BASE_URL}/preview", json=payload)
+        print(f"✅ Status Code: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            print(f"   Preview length: {len(data.get('preview', ''))}")
+            print(f"   Success: {data.get('success')}")
+        else:
+            print(f"❌ Response: {response.text}")
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 
 def run_all_tests():
@@ -268,6 +297,8 @@ def run_all_tests():
         test_roi_detection(filename)
         test_presets()
         test_apply_preset(filename)
+        test_contrast_brightness_preview(filename)
+
     else:
         print("\n⚠️  Upload failed, skipping tests that require an image")
 
