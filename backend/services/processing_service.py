@@ -38,6 +38,12 @@ class ProcessingService:
         # ✨ NOUVEAU: Méthode pour les fonctionnalités avancées (preview & presets)
 
     @staticmethod
+    def apply_contrast_brightness(image, params):
+        alpha = float(params.get('contrast', 1.0))
+        beta = int(params.get('brightness', 0))
+        return cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+
+    @staticmethod
     def apply_operation(image, operation, params):
         """
         Apply a single processing operation to an image (for preview and presets)
@@ -158,7 +164,8 @@ class ProcessingService:
             elif operation == 'contrast':
                 value = params.get('value', 1.5) if params else 1.5
                 img = cv2.convertScaleAbs(img, alpha=value, beta=0)
-
+            elif operation == 'contrast_brightness':
+                return ProcessingService.apply_contrast_brightness(image, params)
             else:
                 raise ValueError(f"Unknown operation: {operation}")
 
@@ -271,6 +278,8 @@ class ProcessingService:
                 kernel = params.get('kernel', 5)
                 kernel = kernel if kernel % 2 == 1 else kernel + 1
                 img = cv2.medianBlur(img, kernel)
+            elif operation == 'contrast_brightness':
+                return ProcessingService.apply_contrast_brightness(image, params)
 
             else:
                 raise ValueError(f"Unknown operation: {operation}")
