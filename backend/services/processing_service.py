@@ -447,18 +447,32 @@ class ProcessingService:
     
     @staticmethod
     def _edge_prewitt(input_path, output_path, params=None):
-        """Filtre de Prewitt avec taille variable"""
+        """Filtre de Prewitt avec kernels prédéfinis"""
         kernel_size = params.get('kernel_size', 3) if params else 3
-        # Assurer taille impaire >= 3
-        if kernel_size % 2 == 0:
-            kernel_size += 1
-        if kernel_size < 3:
+        
+        # Kernels Prewitt prédéfinis
+        kernels = {
+            3: {
+                'x': np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype=np.float32),
+                'y': np.array([[-1, -1, -1], [0, 0, 0], [1, 1, 1]], dtype=np.float32)
+            },
+            5: {
+                'x': np.array([[-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1]], dtype=np.float32),
+                'y': np.array([[-1, -1, -1, -1, -1], [-1, -1, -1, -1, -1], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]], dtype=np.float32)
+            },
+            7: {
+                'x': np.array([[-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1]], dtype=np.float32),
+                'y': np.array([[-1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1], [0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1]], dtype=np.float32)
+            }
+        }
+        
+        # Utiliser taille 3 par défaut si non supportée
+        if kernel_size not in kernels:
             kernel_size = 3
             
         img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        
-        # Générer masques Prewitt de taille variable
-        prewitt_x, prewitt_y = ProcessingService._generate_prewitt_kernels(kernel_size)
+        prewitt_x = kernels[kernel_size]['x']
+        prewitt_y = kernels[kernel_size]['y']
         
         edges_x = cv2.filter2D(img, cv2.CV_64F, prewitt_x)
         edges_y = cv2.filter2D(img, cv2.CV_64F, prewitt_y)
@@ -468,43 +482,25 @@ class ProcessingService:
         return True
     
     @staticmethod
-    def _generate_prewitt_kernels(size):
-        """Génère masques Prewitt de taille variable"""
-        center = size // 2
-        
-        # Masque X (détection verticale)
-        prewitt_x = np.zeros((size, size), dtype=np.float32)
-        for i in range(size):
-            for j in range(size):
-                if j < center:
-                    prewitt_x[i, j] = -1
-                elif j > center:
-                    prewitt_x[i, j] = 1
-        
-        # Masque Y (détection horizontale)
-        prewitt_y = np.zeros((size, size), dtype=np.float32)
-        for i in range(size):
-            for j in range(size):
-                if i < center:
-                    prewitt_y[i, j] = -1
-                elif i > center:
-                    prewitt_y[i, j] = 1
-        
-        return prewitt_x, prewitt_y
-    
-    @staticmethod
     def _edge_laplacian(input_path, output_path, params=None):
-        """Filtre Laplacien avec taille variable"""
+        """Filtre Laplacien avec kernels prédéfinis"""
         kernel_size = params.get('kernel_size', 3) if params else 3
-        # Assurer taille impaire >= 3
-        if kernel_size % 2 == 0:
-            kernel_size += 1
-        if kernel_size < 3:
+        
+        # Kernels Laplacien prédéfinis
+        kernels = {
+            3: np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=np.float32),
+            5: np.array([[0, 0, -1, 0, 0], [0, -1, -2, -1, 0], [-1, -2, 16, -2, -1], [0, -1, -2, -1, 0], [0, 0, -1, 0, 0]], dtype=np.float32),
+            7: np.array([[0, 0, 0, -1, 0, 0, 0], [0, 0, -1, -2, -1, 0, 0], [0, -1, -2, -4, -2, -1, 0], [-1, -2, -4, 32, -4, -2, -1], [0, -1, -2, -4, -2, -1, 0], [0, 0, -1, -2, -1, 0, 0], [0, 0, 0, -1, 0, 0, 0]], dtype=np.float32)
+        }
+        
+        # Utiliser taille 3 par défaut si non supportée
+        if kernel_size not in kernels:
             kernel_size = 3
             
         img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        laplacian = cv2.Laplacian(img, cv2.CV_64F, ksize=kernel_size)
-        edges = cv2.convertScaleAbs(laplacian)
+        laplacian_kernel = kernels[kernel_size]
+        edges = cv2.filter2D(img, cv2.CV_64F, laplacian_kernel)
+        edges = cv2.convertScaleAbs(edges)
         cv2.imwrite(output_path, edges)
         return True
     
