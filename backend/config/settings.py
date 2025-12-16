@@ -8,8 +8,7 @@ class Config:
     PROJECT_ROOT = os.path.dirname(BASE_DIR)
 
     # Dossiers
-    # ✅ FIXED: Use absolute paths relative to backend directory
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+    UPLOAD_FOLDER = os.path.join(PROJECT_ROOT, 'uploads')
     PROCESSED_FOLDER = os.path.join(PROJECT_ROOT, 'processed')
 
     # Limites de fichiers
@@ -26,3 +25,11 @@ class Config:
     # Configuration Flask
     SECRET_KEY = 'dev-key-change-in-production'
     DEBUG = True
+    
+    # Configuration thumbnails
+    THUMBNAIL_SIZES = {
+        'small': (100, 100),
+        'medium': (200, 200),
+        'large': (400, 400)
+    }
+    DEFAULT_THUMBNAIL_SIZE = (200, 200)
