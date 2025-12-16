@@ -549,7 +549,236 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000
+
+
+
+    ⚙️ Image Processing
+1. Process Image
+httpPOST /api/process
+Content-Type: application/json
+Request:
+json{
+    "filename": "image1.jpg",
+    "operation": "grayscale",
+    "parameters": {}
+}
+Response:
+json{
+    "message": "Traitement terminé avec succès",
+    "input_file": "image1.jpg",
+    "output_file": "image1_grayscale.jpg",
+    "operation": "grayscale",
+    "parameters": {}
+}
+Frontend Example:
+javascriptconst processImage = async (filename, operation, params = {}) => {
+    const response = await fetch('http://localhost:5000/api/process', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            filename: filename,
+            operation: operation,
+            parameters: params
+        })
+    });
+    return await response.json();
+};
+
+// Example usage
+const result = await processImage('photo.jpg', 'blur_gaussian', { kernel_size: 15 });
+console.log('Processed file:', result.output_file);
+2. Get Available Operations
+httpGET /api/operations
+Response:
+json{
+    "operations": [
+        {
+            "name": "grayscale",
+            "description": "Convert to grayscale",
+            "parameters": []
+        },
+        {
+            "name": "blur_gaussian",
+            "description": "Gaussian blur",
+            "parameters": [
+                {
+                    "name": "kernel_size",
+                    "type": "integer",
+                    "default": 5,
+                    "min": 3,
+                    "max": 31
+                }
+            ]
+        },
+        {
+            "name": "edge_canny",
+            "description": "Canny edge detection",
+            "parameters": [
+                {
+                    "name": "low",
+                    "type": "integer",
+                    "default": 50
+                },
+                {
+                    "name": "high",
+                    "type": "integer",
+                    "default": 150
+                }
+            ]
+        }
+    ]
+}
+3. Get Processed Image
+httpGET /api/processed/{filename}
+Usage:
+javascript<img src="http://localhost:5000/api/processed/image1_grayscale.jpg" alt="Processed" />
+
+🔬 Advanced Processing Features
+1. Real-time Preview (Without Saving)
+httpPOST /api/preview
+Content-Type: application/json
+Request:
+json{
+    "filename": "image1.jpg",
+    "operation": "blur",
+    "params": {
+        "kernel": 15
+    }
+}
+Response:
+json{
+    "preview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+    "success": true
+}
+Frontend Example:
+javascriptconst previewTransform = async (filename, operation, params) => {
+    const response = await fetch('http://localhost:5000/api/preview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            filename,
+            operation,
+            params
+        })
+    });
+    
+    const data = await response.json();
+    // Display base64 image
+    document.getElementById('preview').src = data.preview;
+};
+2. Get Image Histogram
+httpGET /api/histogram/{filename}?channel=all
+Query Parameters:
+
+channel: all, red, green, blue
+
+Response:
+json{
+    "red": [120, 145, 178, ...],
+    "green": [98, 132, 165, ...],
+    "blue": [87, 115, 142, ...],
+    "success": true
+}
+Frontend Example:
+javascriptconst getHistogram = async (filename, channel = 'all') => {
+    const response = await fetch(
+        `http://localhost:5000/api/histogram/${filename}?channel=${channel}`
+    );
+    return await response.json();
+};
+3. Detect ROI (Region of Interest)
+httpPOST /api/roi/detect
+Content-Type: application/json
+Request:
+json{
+    "filename": "photo.jpg",
+    "type": "faces"
+}
+Types: faces, contours
+Response:
+json{
+    "regions": [
+        {
+            "x": 120,
+            "y": 80,
+            "width": 200,
+            "height": 200,
+            "type": "face"
+        }
+    ],
+    "success": true
+}
+4. Get Available Presets
+httpGET /api/presets
+Response:
+json{
+    "enhance_contrast": {
+        "name": "Enhance Contrast",
+        "operations": [
+            {"type": "histogram_equalization", "params": {}},
+            {"type": "sharpen", "params": {"strength": 1.5}}
+        ]
+    },
+    "edge_detection": {
+        "name": "Edge Detection",
+        "operations": [
+            {"type": "grayscale", "params": {}},
+            {"type": "gaussian_blur", "params": {"kernel": 5}},
+            {"type": "canny", "params": {"threshold1": 100, "threshold2": 200}}
+        ]
+    },
+    "denoise": {
+        "name": "Denoise",
+        "operations": [
+            {"type": "bilateral_filter", "params": {"d": 9, "sigmaColor": 75, "sigmaSpace": 75}}
+        ]
+    },
+    "black_white": {
+        "name": "Black & White",
+        "operations": [
+            {"type": "grayscale", "params": {}},
+            {"type": "adaptive_threshold", "params": {"blockSize": 11, "C": 2}}
+        ]
+    }
+}
+5. Apply Preset
+httpPOST /api/preset/apply
+Content-Type: application/json
+Request:
+json{
+    "filename": "image1.jpg",
+    "preset": "enhance_contrast"
+}
+Response:
+json{
+    "processed_image": "image1_enhanced.jpg",
+    "success": true
+}
+
+📥 Download Endpoints
+1. Download Single File
+httpGET /api/download/single/{filename}
+Frontend Example:
+javascriptconst downloadSingle = (filename) => {
+    window.location.href = `http://localhost:5000/api/download/single/${filename}`;
+};
+2. Batch Download (ZIP)
+httpGET /api/download/batch?files=file1.jpg,file2.jpg,file3.jpg
+Frontend Example:
+javascriptconst downloadBatch = (filenames) => {
+    const files = filenames.join(',');
+    window.location.href = `http://localhost:5000/api/download/batch?files=${files}`;
+};
+
+// Usage
+downloadBatch(['image1_grayscale.jpg', 'image2_blur.jpg', 'image3_edges.jpg']);
+
+🛠️ Available Processing Operations
 
 ## 🔧 Development Tips
 
