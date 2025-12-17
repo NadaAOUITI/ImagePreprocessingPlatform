@@ -31,13 +31,10 @@ export default function ProcessingWorkspaceClean() {
   const navigate = useNavigate();
   const { images, selectedImage, addHistory, addImages, setSelectedImage } = useImageStore();
   const { addHistogram } = useHistogramStore();
-const [histStretch, setHistStretch] = useState(false);
+  const [histStretch, setHistStretch] = useState(false);
 
-useEffect(() => {
-  if (histStretch) {
-    applyHistogramStretch(); // ne s'exécute que si histStretch est true
-  }
-}, [histStretch]); // se déclenche à chaque changement de histStretch
+
+
   const originalCanvasRef = useRef(null);
   const processedCanvasRef = useRef(null);
   const originalImgRef = useRef(null);
@@ -94,7 +91,8 @@ useEffect(() => {
   const pushStateToUndo = useCallback(() => {
     undoStackRef.current.push(JSON.stringify({
       grayscale, threshold, blur, resizePercent, rotation,
-      flipH, flipV, normalize, equalize, segmentationRGB, roi
+      flipH, flipV, normalize, equalize, segmentationRGB, roi,histStretch,
+
     }));
     if (undoStackRef.current.length > 50) undoStackRef.current.shift();
     redoStackRef.current = [];
@@ -113,6 +111,8 @@ useEffect(() => {
     setEqualize(st.equalize ?? false);
     setSegmentationRGB(st.segmentationRGB ?? false);
     setRoi(st.roi ?? null);
+    setHistStretch(st.histStretch ?? false);
+
   };
 
   const handleUndo = () => {
@@ -121,7 +121,7 @@ useEffect(() => {
     const last = u.pop();
     redoStackRef.current.push(JSON.stringify({
       grayscale, threshold, blur, resizePercent, rotation,
-      flipH, flipV, normalize, equalize, segmentationRGB, roi
+      flipH, flipV, normalize, equalize, segmentationRGB, roi,histStretch
     }));
     applyStateFromObject(JSON.parse(last), false);
   };
@@ -132,7 +132,7 @@ useEffect(() => {
     const last = r.pop();
     undoStackRef.current.push(JSON.stringify({
       grayscale, threshold, blur, resizePercent, rotation,
-      flipH, flipV, normalize, equalize, segmentationRGB, roi
+      flipH, flipV, normalize, equalize, segmentationRGB, roi,histStretch
     }));
     applyStateFromObject(JSON.parse(last), false);
   };
@@ -194,6 +194,32 @@ useEffect(() => {
 
     const imgData = pCtx.getImageData(0,0,procCanvas.width,procCanvas.height);
     const data = imgData.data;
+    const applyHistogramStretch = (data) => {
+  let minR = 255, minG = 255, minB = 255;
+  let maxR = 0, maxG = 0, maxB = 0;
+
+  // Trouver min et max par canal
+  for (let i = 0; i < data.length; i += 4) {
+    minR = Math.min(minR, data[i]);
+    minG = Math.min(minG, data[i + 1]);
+    minB = Math.min(minB, data[i + 2]);
+
+    maxR = Math.max(maxR, data[i]);
+    maxG = Math.max(maxG, data[i + 1]);
+    maxB = Math.max(maxB, data[i + 2]);
+  }
+
+  const rangeR = maxR - minR || 1;
+  const rangeG = maxG - minG || 1;
+  const rangeB = maxB - minB || 1;
+
+  // Étirement
+  for (let i = 0; i < data.length; i += 4) {
+    data[i]     = ((data[i]     - minR) * 255) / rangeR;
+    data[i + 1] = ((data[i + 1] - minG) * 255) / rangeG;
+    data[i + 2] = ((data[i + 2] - minB) * 255) / rangeB;
+  }
+};
 
     // Pixel-level ops
     if (normalize) {
@@ -202,7 +228,7 @@ useEffect(() => {
       const range=max-min||1;
       for(let i=0;i<data.length;i+=4){ data[i]=((data[i]-min)*255)/range; data[i+1]=((data[i+1]-min)*255)/range; data[i+2]=((data[i+2]-min)*255)/range;}
     }
-    if (histStretch) applyHistogramStretch(data);
+    if (histStretch) {applyHistogramStretch(data);}
 
 
     if (equalize) {
@@ -228,21 +254,7 @@ useEffect(() => {
       }
     }
     pCtx.putImageData(imgData,0,0);
-// Histogram Stretching (Étirement)
-const applyHistogramStretch = (data) => {
-  let min = 255, max = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    const lum = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
-    if (lum < min) min = lum;
-    if (lum > max) max = lum;
-  }
-  const range = max - min || 1;
-  for (let i = 0; i < data.length; i += 4) {
-    data[i]   = Math.min(255, Math.max(0, ((data[i]-min)*255)/range));
-    data[i+1] = Math.min(255, Math.max(0, ((data[i+1]-min)*255)/range));
-    data[i+2] = Math.min(255, Math.max(0, ((data[i+2]-min)*255)/range));
-  }
-};
+
 
 
 
@@ -308,6 +320,7 @@ const applyHistogramStretch = (data) => {
     if(grayscale) names.push("Grayscale");
     if(equalize) names.push("Égalisation");
     if(normalize) names.push("Normalisation");
+    if (histStretch) names.push("Étirement histogramme");
     if(segmentationRGB) names.push("Segmentation RGB");
     if(threshold!==128) names.push(`Seuillage ${threshold}`);
     if(blur>0) names.push(`Flou ${blur}px`);
@@ -420,12 +433,67 @@ const applyHistogramStretch = (data) => {
               </Stack>
 
               {/* Normalize / Equalize / Segmentation */}
-              {["normalize","equalize","segmentationRGB"].map((name)=>(
-                <Stack key={name} direction="row" justifyContent="space-between">
-                  <Typography variant="subtitle2">{name.charAt(0).toUpperCase()+name.slice(1)}</Typography>
-                  <Button size="small" variant={eval(name)? "contained":"outlined"} onClick={()=>{pushStateToUndo(); eval("set"+name.charAt(0).toUpperCase()+name.slice(1))((v)=>!v)}}>{eval(name)? "On":"Off"}</Button>
-                </Stack>
-              ))}
+             {/* Normalize */}
+<Stack direction="row" justifyContent="space-between">
+  <Typography variant="subtitle2">Normalisation</Typography>
+  <Button
+    size="small"
+    variant={normalize ? "contained" : "outlined"}
+    onClick={() => {
+      pushStateToUndo();
+      setNormalize(v => !v);
+    }}
+  >
+    {normalize ? "On" : "Off"}
+  </Button>
+</Stack>
+
+{/* Histogram Stretch */}
+<Stack direction="row" justifyContent="space-between">
+  <Typography variant="subtitle2">Étirement</Typography>
+  <Button
+    size="small"
+    variant={histStretch ? "contained" : "outlined"}
+    onClick={() => {
+      pushStateToUndo();
+      setHistStretch(v => !v);
+    }}
+  >
+    {histStretch ? "On" : "Off"}
+  </Button>
+</Stack>
+
+{/* Equalization */}
+<Stack direction="row" justifyContent="space-between">
+  <Typography variant="subtitle2">Égalisation</Typography>
+  <Button
+    size="small"
+    variant={equalize ? "contained" : "outlined"}
+    onClick={() => {
+      pushStateToUndo();
+      setEqualize(v => !v);
+    }}
+  >
+    {equalize ? "On" : "Off"}
+  </Button>
+</Stack>
+
+{/* Segmentation RGB */}
+<Stack direction="row" justifyContent="space-between">
+  <Typography variant="subtitle2">Segmentation RGB</Typography>
+  <Button
+    size="small"
+    variant={segmentationRGB ? "contained" : "outlined"}
+    onClick={() => {
+      pushStateToUndo();
+      setSegmentationRGB(v => !v);
+    }}
+  >
+    {segmentationRGB ? "On" : "Off"}
+  </Button>
+</Stack>
+
+
 
 
               
