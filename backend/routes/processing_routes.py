@@ -3,7 +3,9 @@ from services.processing_service import ProcessingService
 from services.operations_service import OperationsService
 from utils.error_handlers import handle_upload_error, handle_file_not_found
 from config.settings import Config
-
+import os
+from PIL import Image, ImageFilter
+from flask import current_app
 processing_bp = Blueprint('processing', __name__)
 
 @processing_bp.route('/process', methods=['POST'])
@@ -27,6 +29,26 @@ def process_image():
         
         if error:
             return jsonify({'error': error}), 400
+         # Sauvegarder l'image traitée dans PROCESSED_FOLDER
+        input_path = os.path.join(Config.UPLOAD_FOLDER, filename)
+        output_path = os.path.join(Config.PROCESSED_FOLDER, output_filename)
+        
+        if not os.path.exists(output_path):  # si le fichier n'existe pas déjà
+            from PIL import Image
+            img = Image.open(input_path)
+            
+            # Refaire le même traitement que ProcessingService pour sauvegarde
+            if operation == "blur_mean":
+                from PIL import ImageFilter
+                img = img.filter(ImageFilter.BoxBlur(params.get("kernel_size", 5)))
+            elif operation == "blur_gaussian":
+                from PIL import ImageFilter
+                img = img.filter(ImageFilter.GaussianBlur(params.get("kernel_size", 5)))
+            elif operation == "blur_median":
+                from PIL import ImageFilter
+                img = img.filter(ImageFilter.MedianFilter(params.get("kernel_size", 5)))
+            
+            img.save(output_path)
         
         return jsonify({
             'message': 'Traitement terminé avec succès',

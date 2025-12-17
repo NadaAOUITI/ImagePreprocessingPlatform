@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-const API_BASE = "http://localhost:5000"; // adapte si besoin
+const API_BASE = "http://localhost:5000/api"; // adapte si besoin
 
 export default function EdgeFilters() {
   const { state } = useLocation();

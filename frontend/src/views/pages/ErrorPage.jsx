@@ -18,7 +18,7 @@ export default function ErrorPage({ message }) {
       </p>
 
       <button
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/processing")}
         style={{
           marginTop: "20px",
           padding: "10px 20px",

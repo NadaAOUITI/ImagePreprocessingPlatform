@@ -13,45 +13,56 @@ const Gallery = () => {
 
   const { clearImages } = useImageStore();
 
-  const handleFiles = async (e)  => {
-    const files = Array.from(e.target.files);
+  const handleFiles = async (e) => {
+  const files = Array.from(e.target.files);
+  const valid = ["image/jpeg", "image/png", "image/bmp"];
+  const validImages = files.filter(f => valid.includes(f.type));
 
-    const valid = ["image/jpeg", "image/png", "image/bmp"];
+  if (validImages.length === 0) {
+    alert("Images JPG, PNG ou BMP uniquement");
+    return;
+  }
 
-    const validImages = files.filter((file) => valid.includes(file.type));
-    if (validImages.length === 0) {
-      alert("Veuillez choisir des images JPG, PNG ou BMP.");
-      return;
+  const uploadedImages = [];
+
+  for (const file of validImages) {
+    try {
+      const preview = URL.createObjectURL(file);
+
+      const response = await uploadImageToBackend(file);
+
+      const uploaded = response.successful_uploads?.[0];
+      if (!uploaded?.filename) {
+        throw new Error("Réponse backend invalide");
+      }
+
+      uploadedImages.push({
+        dataUrl: preview,
+        name: uploaded.filename // 🔥 NOM BACKEND
+      });
+
+    } catch (err) {
+      console.error(err);
+
+      // fallback UI (ne bloque pas l'affichage)
+      uploadedImages.push({
+        dataUrl: URL.createObjectURL(file),
+        name: file.name,
+        backendFailed: true
+      });
     }
-  //   for (const file of files) {
-  //   // Upload backend
-  //   const response = await uploadImageToBackend(file);
+  }
 
-  //   addImages({
-  //     dataUrl: URL.createObjectURL(file),
-  //     name: response.filename  // NOM BACKEND
-  //   });
-  // }
-    Promise.all(
-      validImages.map(
-        (file) =>
-          new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => resolve({ dataUrl: ev.target.result, name: file.name });
-            reader.readAsDataURL(file);
-          })
-      )
-    ).then(addImages);
+  addImages(uploadedImages);
+};
 
- 
-  };
 
 /**backend **/
 const uploadImageToBackend = async (file) => {
   const formData = new FormData();
-  formData.append("image", file);
+  formData.append("files", file);
 
-  const res = await fetch("http://localhost:5000/upload", {
+  const res = await fetch("http://localhost:5000/api/upload", {
     method: "POST",
     body: formData
   });
@@ -373,7 +384,13 @@ const uploadImageToBackend = async (file) => {
       <div style={{ marginTop: "30px", textAlign: "center" }}>
         <button
           onClick={() => {
-         if (selectedImage !== null) navigate("/processing");
+         if (selectedImage !== null) 
+         navigate("/processing", {
+          state: {
+          image: images[selectedImage].dataUrl,
+          filename: images[selectedImage].name
+          }
+});
           }}
           style={{
             padding: "14px 32px",
