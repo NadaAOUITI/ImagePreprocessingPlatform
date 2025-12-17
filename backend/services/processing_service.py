@@ -314,14 +314,13 @@ class ProcessingService:
             # Filtres de détection de contours
             elif operation == 'edge_canny':
                 return ProcessingService._edge_canny(input_path, output_path, params)
-            elif operation == 'edge_roberts':
-                return ProcessingService._edge_roberts(input_path, output_path)
+
             elif operation == 'edge_sobel':
-                return ProcessingService._edge_sobel(input_path, output_path)
+                return ProcessingService._edge_sobel(input_path, output_path, params)
             elif operation == 'edge_prewitt':
-                return ProcessingService._edge_prewitt(input_path, output_path)
+                return ProcessingService._edge_prewitt(input_path, output_path, params)
             elif operation == 'edge_laplacian':
-                return ProcessingService._edge_laplacian(input_path, output_path)
+                return ProcessingService._edge_laplacian(input_path, output_path, params)
             # Autres opérations
             elif operation == 'resize':
                 return ProcessingService._resize(input_path, output_path, params)
@@ -427,36 +426,54 @@ class ProcessingService:
         cv2.imwrite(output_path, edges)
         return True
     
+
     @staticmethod
-    def _edge_roberts(input_path, output_path):
-        """Filtre de Roberts"""
+    def _edge_sobel(input_path, output_path, params=None):
+        """Filtre de Sobel avec taille variable"""
+        kernel_size = params.get('kernel_size', 3) if params else 3
+        # Assurer taille impaire >= 3
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        if kernel_size < 3:
+            kernel_size = 3
+            
         img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        roberts_x = np.array([[1, 0], [0, -1]])
-        roberts_y = np.array([[0, 1], [-1, 0]])
-        edges_x = cv2.filter2D(img, cv2.CV_64F, roberts_x)
-        edges_y = cv2.filter2D(img, cv2.CV_64F, roberts_y)
-        edges = np.sqrt(edges_x**2 + edges_y**2)
-        edges = cv2.convertScaleAbs(edges)
-        cv2.imwrite(output_path, edges)
-        return True
-    
-    @staticmethod
-    def _edge_sobel(input_path, output_path):
-        """Filtre de Sobel"""
-        img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        sobel_x = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=3)
-        sobel_y = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=3)
+        sobel_x = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=kernel_size)
+        sobel_y = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=kernel_size)
         edges = np.sqrt(sobel_x**2 + sobel_y**2)
         edges = cv2.convertScaleAbs(edges)
         cv2.imwrite(output_path, edges)
         return True
     
     @staticmethod
-    def _edge_prewitt(input_path, output_path):
-        """Filtre de Prewitt"""
+    def _edge_prewitt(input_path, output_path, params=None):
+        """Filtre de Prewitt avec kernels prédéfinis"""
+        kernel_size = params.get('kernel_size', 3) if params else 3
+        
+        # Kernels Prewitt prédéfinis
+        kernels = {
+            3: {
+                'x': np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype=np.float32),
+                'y': np.array([[-1, -1, -1], [0, 0, 0], [1, 1, 1]], dtype=np.float32)
+            },
+            5: {
+                'x': np.array([[-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1], [-1, -1, 0, 1, 1]], dtype=np.float32),
+                'y': np.array([[-1, -1, -1, -1, -1], [-1, -1, -1, -1, -1], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]], dtype=np.float32)
+            },
+            7: {
+                'x': np.array([[-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1], [-1, -1, -1, 0, 1, 1, 1]], dtype=np.float32),
+                'y': np.array([[-1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1], [-1, -1, -1, -1, -1, -1, -1], [0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1]], dtype=np.float32)
+            }
+        }
+        
+        # Utiliser taille 3 par défaut si non supportée
+        if kernel_size not in kernels:
+            kernel_size = 3
+            
         img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        prewitt_x = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]])
-        prewitt_y = np.array([[-1, -1, -1], [0, 0, 0], [1, 1, 1]])
+        prewitt_x = kernels[kernel_size]['x']
+        prewitt_y = kernels[kernel_size]['y']
+        
         edges_x = cv2.filter2D(img, cv2.CV_64F, prewitt_x)
         edges_y = cv2.filter2D(img, cv2.CV_64F, prewitt_y)
         edges = np.sqrt(edges_x**2 + edges_y**2)
@@ -465,11 +482,25 @@ class ProcessingService:
         return True
     
     @staticmethod
-    def _edge_laplacian(input_path, output_path):
-        """Filtre Laplacien"""
+    def _edge_laplacian(input_path, output_path, params=None):
+        """Filtre Laplacien avec kernels prédéfinis"""
+        kernel_size = params.get('kernel_size', 3) if params else 3
+        
+        # Kernels Laplacien prédéfinis
+        kernels = {
+            3: np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=np.float32),
+            5: np.array([[0, 0, -1, 0, 0], [0, -1, -2, -1, 0], [-1, -2, 16, -2, -1], [0, -1, -2, -1, 0], [0, 0, -1, 0, 0]], dtype=np.float32),
+            7: np.array([[0, 0, 0, -1, 0, 0, 0], [0, 0, -1, -2, -1, 0, 0], [0, -1, -2, -4, -2, -1, 0], [-1, -2, -4, 32, -4, -2, -1], [0, -1, -2, -4, -2, -1, 0], [0, 0, -1, -2, -1, 0, 0], [0, 0, 0, -1, 0, 0, 0]], dtype=np.float32)
+        }
+        
+        # Utiliser taille 3 par défaut si non supportée
+        if kernel_size not in kernels:
+            kernel_size = 3
+            
         img = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        laplacian = cv2.Laplacian(img, cv2.CV_64F)
-        edges = cv2.convertScaleAbs(laplacian)
+        laplacian_kernel = kernels[kernel_size]
+        edges = cv2.filter2D(img, cv2.CV_64F, laplacian_kernel)
+        edges = cv2.convertScaleAbs(edges)
         cv2.imwrite(output_path, edges)
         return True
     
