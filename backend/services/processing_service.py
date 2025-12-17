@@ -308,9 +308,6 @@ class ProcessingService:
             elif operation == 'sharpen_kernel':
                 return ProcessingService._sharpen_kernel(input_path, output_path)
 
-            elif operation == 'sharpen_laplacian':
-                return ProcessingService._sharpen_laplacian(input_path, output_path)
-
             # Filtres de détection de contours
             elif operation == 'edge_canny':
                 return ProcessingService._edge_canny(input_path, output_path, params)
@@ -405,15 +402,7 @@ class ProcessingService:
         return True
     
 
-    @staticmethod
-    def _sharpen_laplacian(input_path, output_path):
-        """Laplacien + original"""
-        img = cv2.imread(input_path)
-        laplacian = cv2.Laplacian(img, cv2.CV_64F)
-        sharpened = cv2.convertScaleAbs(img - laplacian)
-        cv2.imwrite(output_path, sharpened)
-        return True
-    
+
 
     # ===== FILTRES DE DÉTECTION DE CONTOURS =====
     @staticmethod
