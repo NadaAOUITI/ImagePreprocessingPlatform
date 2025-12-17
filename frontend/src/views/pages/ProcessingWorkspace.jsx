@@ -345,7 +345,7 @@ export default function ProcessingWorkspaceClean() {
     <Container maxWidth="xl" sx={{ py:4 }}>
       <Grid container spacing={3}>
         {/* Left: Viewer */}
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={9}>
           <Paper
             id="pv-container"
             onDrop={onDrop}
@@ -392,7 +392,7 @@ export default function ProcessingWorkspaceClean() {
         </Grid>
 
         {/* Right: Controls */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={3}>
           <Paper sx={{p:2, borderRadius:2}} elevation={3}>
             <Typography variant="h6" gutterBottom>Prétraitement</Typography>
             <Stack spacing={2}>

@@ -143,7 +143,7 @@ export default function BlurFilters() {
     <div style={{ minHeight: "100vh", padding: 32 }}>
       <button onClick={() => navigate(-1)} style={backBtn}>⬅ Retour</button>
 
-      <h1>🌫️ Blur Filters </h1>
+      <h1> Blur Filters </h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 32 }}>
 
