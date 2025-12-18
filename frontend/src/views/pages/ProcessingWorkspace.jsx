@@ -98,7 +98,7 @@ export default function ProcessingWorkspaceClean() {
     }));
     if (undoStackRef.current.length > 50) undoStackRef.current.shift();
     redoStackRef.current = [];
-  }, [grayscale, threshold, blur, resizePercent, rotation, flipH, flipV, normalize, equalize, segmentationRGB, roi]);
+  }, [grayscale, threshold, blur, resizePercent, rotation, flipH, flipV, normalize, equalize, segmentationRGB, roi,histStretch]);
 
   const applyStateFromObject = (st, pushUndo = true) => {
     if (pushUndo) pushStateToUndo();
@@ -210,13 +210,14 @@ export default function ProcessingWorkspaceClean() {
 
     const imgData = pCtx.getImageData(0,0,procCanvas.width,procCanvas.height);
     const data = imgData.data;
-    const applyHistogramStretch = (data) => {
-  let minR = 255, minG = 255, minB = 255;
-  let maxR = 0, maxG = 0, maxB = 0;
+  const applyHistogramStretch = (imageData) => {
+  const data = imageData.data;
 
-  // Trouver min et max par canal
+  let minR = 255, minG = 255, minB = 255;
+  let maxR = 0,   maxG = 0,   maxB = 0;
+
+  // === min / max par canal (équivalent img[:,:,c].min()) ===
   for (let i = 0; i < data.length; i += 4) {
-    if (!isInROI(i)) continue;
     minR = Math.min(minR, data[i]);
     minG = Math.min(minG, data[i + 1]);
     minB = Math.min(minB, data[i + 2]);
@@ -230,14 +231,15 @@ export default function ProcessingWorkspaceClean() {
   const rangeG = maxG - minG || 1;
   const rangeB = maxB - minB || 1;
 
-  // Étirement
+  // === (img - min) * 255 / (max - min) ===
   for (let i = 0; i < data.length; i += 4) {
-    if (!isInROI(i)) continue;
-    data[i]     = ((data[i]     - minR) * 255) / rangeR;
-    data[i + 1] = ((data[i + 1] - minG) * 255) / rangeG;
-    data[i + 2] = ((data[i + 2] - minB) * 255) / rangeB;
+    data[i]     = Math.round((data[i]     - minR) * 255 / rangeR);
+    data[i + 1] = Math.round((data[i + 1] - minG) * 255 / rangeG);
+    data[i + 2] = Math.round((data[i + 2] - minB) * 255 / rangeB);
+    // alpha (i+3) inchangé
   }
 };
+
 
     // Pixel-level ops
     if (normalize) {
@@ -327,7 +329,7 @@ export default function ProcessingWorkspaceClean() {
     img.src = imageSrc;
   }, [imageSrc, redrawCanvases]);
 
-  useEffect(() => { redrawCanvases(); }, [grayscale, threshold, blur, resizePercent, rotation, flipH, flipV, normalize, equalize, segmentationRGB, redrawCanvases]);
+  useEffect(() => { redrawCanvases(); }, [grayscale, threshold, blur, resizePercent, rotation, flipH, flipV, normalize, equalize, segmentationRGB, redrawCanvases,histStretch]);
 
   // -------------------- Pan / Zoom --------------------
   const onPanMouseDown = e => {

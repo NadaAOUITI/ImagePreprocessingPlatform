@@ -137,6 +137,16 @@ export default function BlurFilters() {
     const p = processedCanvasRef.current;
     p.getContext("2d").drawImage(o, 0, 0);
   };
+  const downloadImage = () => {
+  const canvas = processedCanvasRef.current;
+  if (!canvas) return;
+
+  const link = document.createElement("a");
+  link.download = "image_blur.png"; // nom du fichier
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+};
+
 
   // ---------- UI ----------
   return (
@@ -169,6 +179,17 @@ export default function BlurFilters() {
           <button style={{ ...btn, background: "#999" }} onClick={resetImage}>
             Réinitialiser
           </button>
+          <button style={{ ...btn, background: "#999" }} onClick={resetImage}>
+  Réinitialiser
+</button>
+
+<button
+  style={{ ...btn, background: "#2e7d32" }}
+  onClick={downloadImage}
+>
+  Télécharger l’image
+</button>
+
         </aside>
 
         {/* IMAGES */}

@@ -110,6 +110,15 @@ export default function EdgeFilters() {
       .getContext("2d")
       .drawImage(originalCanvas.current, 0, 0);
   };
+  const downloadImage = () => {
+  const canvas = processedCanvasRef.current;
+  if (!canvas) return;
+
+  const link = document.createElement("a");
+  link.download = "image_blur.png"; // nom du fichier
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+};
 
   /* ---------- UI ---------- */
   return (
@@ -137,6 +146,12 @@ export default function EdgeFilters() {
           <button style={btn} onClick={canny}>Canny</button>
 
           <button style={{ ...btn, background: "#999" }} onClick={reset}>Réinitialiser</button>
+          <button
+  style={{ ...btn, background: "#2e7d32" }}
+  onClick={downloadImage}
+>
+  Télécharger l’image
+</button>
         </aside>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
