@@ -315,6 +315,19 @@ export default function ProcessingWorkspaceClean() {
     pCtx.putImageData(imgData,0,0);
 
 
+const getCanvasCoords = (e, canvas) => {
+  const rect = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+};
+
+
 
 
     // Save processed image to backend
@@ -345,23 +358,61 @@ export default function ProcessingWorkspaceClean() {
   const resetView = () => { setZoom(1); setPan({x:0,y:0}); };
 
   // -------------------- ROI --------------------
-  const onRoiMouseDown = e => {
+const onRoiMouseDown = e => {
   if (!roiMode) return;
   if (e.button !== 0) return;
 
-  const el = processedCanvasRef.current;
-  if (!el) return;
+  e.stopPropagation(); // 🔥 CRUCIAL
 
-  const rect = el.getBoundingClientRect();
+  const canvas = processedCanvasRef.current;
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+
   roiDragRef.current = true;
   roiStartRef.current = {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
+    x: (e.clientX - rect.left) * window.devicePixelRatio,
+    y: (e.clientY - rect.top) * window.devicePixelRatio
   };
+
+  setRoi({ x: roiStartRef.current.x, y: roiStartRef.current.y, w: 0, h: 0 });
 };
 
-  const onRoiMouseMove = e => { if(!roiDragRef.current) return; const el=processedCanvasRef.current; if(!el) return; const rect=el.getBoundingClientRect(); const x=e.clientX-rect.left; const y=e.clientY-rect.top; const sx=roiStartRef.current.x; const sy=roiStartRef.current.y; setRoi({x:Math.min(sx,x), y:Math.min(sy,y), w:Math.abs(x-sx), h:Math.abs(y-sy)}); };
-  const onRoiMouseUp = () => { if(!roiDragRef.current) return; roiDragRef.current=false; pushStateToUndo(); };
+const onRoiMouseMove = e => {
+  if (!roiMode) return;
+  if (!roiDragRef.current) return;
+
+  e.stopPropagation();
+
+  const canvas = processedCanvasRef.current;
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+
+  const x = (e.clientX - rect.left) * window.devicePixelRatio;
+  const y = (e.clientY - rect.top) * window.devicePixelRatio;
+
+  const sx = roiStartRef.current.x;
+  const sy = roiStartRef.current.y;
+
+  setRoi({
+    x: Math.min(sx, x),
+    y: Math.min(sy, y),
+    w: Math.abs(x - sx),
+    h: Math.abs(y - sy)
+  });
+};
+
+  const onRoiMouseUp = e => {
+  if (!roiMode) return;
+  if (!roiDragRef.current) return;
+
+  e.stopPropagation();
+
+  roiDragRef.current = false;
+  pushStateToUndo();
+};
+
 
   // -------------------- File upload --------------------
   const handleFile = file => {
@@ -678,7 +729,7 @@ export default function ProcessingWorkspaceClean() {
             </Box>
 
             <Box sx={{ width: "100%", height: "100%", position: "relative", background: "linear-gradient(180deg, #fff 0%, #f8fafc 100%)" }} onWheel={handleWheel}>
-              <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0", width: "max-content", height: "max-content", position: "absolute", left: 0, top: 0, cursor: isPanningRef.current ? "grabbing" : "grab" }} onMouseDown={onPanMouseDown}>
+              <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0", width: "max-content", height: "max-content", position: "absolute", left: 0, top: 0, cursor: isPanningRef.current ? "grabbing" : "grab" }}  onMouseDown={roiMode ? undefined : onPanMouseDown}>
                 <div style={{ display: "inline-block", verticalAlign: "top" }}>
                   <Typography variant="caption" sx={{ ml: 2 }}>Original</Typography>
                   <canvas ref={originalCanvasRef} style={{ display: "block", margin: 8, background: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }} />
@@ -689,10 +740,29 @@ export default function ProcessingWorkspaceClean() {
                     <canvas ref={processedCanvasRef}
                       onMouseDown={onRoiMouseDown}
                       onMouseMove={onRoiMouseMove} onMouseUp={onRoiMouseUp}
-                      style={
-                        { display: "block", margin: 8, background: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.06)", userSelect: "none" }
-                      } />
-                    {roi && <div style={{ position: "absolute", left: `${roi.x}px`, top: `${roi.y}px`, width: `${roi.w}px`, height: `${roi.h}px`, border: "2px dashed rgba(255,165,0,0.95)", background: "rgba(255,165,0,0.08)", pointerEvents: "none" }} />}
+                      // style={
+                      //   { display: "block", margin: 8, background: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.06)", userSelect: "none" }
+                      // } 
+                      style={{
+  cursor: roiMode ? "crosshair" : isPanningRef.current ? "grabbing" : "grab"
+}}
+                      />
+                   {roi && (
+  <div
+    style={{
+      position: "absolute",
+      left: roi.x / window.devicePixelRatio,
+      top: roi.y / window.devicePixelRatio,
+      width: roi.w / window.devicePixelRatio,
+      height: roi.h / window.devicePixelRatio,
+      border: "2px dashed rgba(255,165,0,0.95)",
+      background: "rgba(255,165,0,0.08)",
+      pointerEvents: "none",
+      boxSizing: "border-box"
+    }}
+  />
+)}
+
                   </div>
                 </div>
               </div>
