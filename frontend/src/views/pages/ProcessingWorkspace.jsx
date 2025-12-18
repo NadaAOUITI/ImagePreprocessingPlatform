@@ -33,6 +33,8 @@ export default function ProcessingWorkspaceClean() {
   const { addHistogram } = useHistogramStore();
   const [histStretch, setHistStretch] = useState(false);
 
+  const [roiMode, setRoiMode] = useState(false);
+
 
 
   const originalCanvasRef = useRef(null);
@@ -162,7 +164,21 @@ export default function ProcessingWorkspaceClean() {
     const w = Math.max(1, Math.round(baseW * scale));
     const h = Math.max(1, Math.round(baseH * scale));
     const dpr = window.devicePixelRatio || 1;
+    
+    const isInROI = (i) => {
+    if (!roi) return true;
 
+    const px = (i / 4) % procCanvas.width;
+    const py = Math.floor((i / 4) / procCanvas.width);
+
+    return (
+    px >= roi.x &&
+    px <= roi.x + roi.w &&
+    py >= roi.y &&
+    py <= roi.y + roi.h
+  );
+  };
+ 
     origCanvas.width = baseW * dpr;
     origCanvas.height = baseH * dpr;
     origCanvas.style.width = `${baseW}px`;
@@ -200,6 +216,7 @@ export default function ProcessingWorkspaceClean() {
 
   // Trouver min et max par canal
   for (let i = 0; i < data.length; i += 4) {
+    if (!isInROI(i)) continue;
     minR = Math.min(minR, data[i]);
     minG = Math.min(minG, data[i + 1]);
     minB = Math.min(minB, data[i + 2]);
@@ -215,6 +232,7 @@ export default function ProcessingWorkspaceClean() {
 
   // Étirement
   for (let i = 0; i < data.length; i += 4) {
+    if (!isInROI(i)) continue;
     data[i]     = ((data[i]     - minR) * 255) / rangeR;
     data[i + 1] = ((data[i + 1] - minG) * 255) / rangeG;
     data[i + 2] = ((data[i + 2] - minB) * 255) / rangeB;
@@ -223,24 +241,62 @@ export default function ProcessingWorkspaceClean() {
 
     // Pixel-level ops
     if (normalize) {
+      
       let min=255,max=0;
-      for(let i=0;i<data.length;i+=4){ const lum=0.2126*data[i]+0.7152*data[i+1]+0.0722*data[i+2]; if(lum<min)min=lum; if(lum>max)max=lum; }
+      for(let i=0;i<data.length;i+=4)
+        {  if (!isInROI(i)) continue;
+          const lum=0.2126*data[i]+0.7152*data[i+1]+0.0722*data[i+2];
+           if(lum<min)min=lum;
+            if(lum>max)max=lum; }
       const range=max-min||1;
-      for(let i=0;i<data.length;i+=4){ data[i]=((data[i]-min)*255)/range; data[i+1]=((data[i+1]-min)*255)/range; data[i+2]=((data[i+2]-min)*255)/range;}
+      for(let i=0;i<data.length;i+=4){
+          if (!isInROI(i)) continue; 
+        data[i]=((data[i]-min)*255)/range; data[i+1]=((data[i+1]-min)*255)/range;
+         data[i+2]=((data[i+2]-min)*255)/range;}
     }
     if (histStretch) {applyHistogramStretch(data);}
 
 
-    if (equalize) {
-      const histR=new Array(256).fill(0), histG=new Array(256).fill(0), histB=new Array(256).fill(0);
-      for(let i=0;i<data.length;i+=4){ histR[data[i]]++; histG[data[i+1]]++; histB[data[i+2]]++; }
-      const cdf=(h)=>{ const out=[]; let c=0; for(let i=0;i<256;i++){ c+=h[i]; out[i]=Math.round((c/(data.length/4))*255);} return out;}
-      const mapR=cdf(histR), mapG=cdf(histG), mapB=cdf(histB);
-      for(let i=0;i<data.length;i+=4){ data[i]=mapR[data[i]]; data[i+1]=mapG[data[i+1]]; data[i+2]=mapB[data[i+2]];}
+   if (equalize) {
+  const histR = new Array(256).fill(0), histG = new Array(256).fill(0), histB = new Array(256).fill(0);
+
+  // Calcul histogramme uniquement dans la ROI
+  for (let i = 0; i < data.length; i += 4) {
+    if (!isInROI(i)) continue;
+    histR[data[i]]++;
+    histG[data[i + 1]]++;
+    histB[data[i + 2]]++;
+  }
+
+  // CDF
+  const cdf = (h) => {
+    const out = [];
+    let c = 0;
+    const totalPixels = h.reduce((acc, v) => acc + v, 0); // total pixels dans la ROI
+    for (let i = 0; i < 256; i++) {
+      c += h[i];
+      out[i] = Math.round((c / totalPixels) * 255);
     }
+    return out;
+  };
+
+  const mapR = cdf(histR);
+  const mapG = cdf(histG);
+  const mapB = cdf(histB);
+
+  // Appliquer égalisation uniquement dans la ROI
+  for (let i = 0; i < data.length; i += 4) {
+    if (!isInROI(i)) continue;
+    data[i] = mapR[data[i]];
+    data[i + 1] = mapG[data[i + 1]];
+    data[i + 2] = mapB[data[i + 2]];
+  }
+}
+
 
     if (segmentationRGB) {
       for(let i=0;i<data.length;i+=4){
+         if (!isInROI(i)) continue;
         const r=data[i],g=data[i+1],b=data[i+2], maxc=Math.max(r,g,b);
         if(maxc===r && r>threshold){data[i]=255;data[i+1]=0;data[i+2]=0;}
         else if(maxc===g && g>threshold){data[i]=0;data[i+1]=255;data[i+2]=0;}
@@ -248,6 +304,7 @@ export default function ProcessingWorkspaceClean() {
       }
     } else if(threshold!==128 || grayscale){
       for(let i=0;i<data.length;i+=4){
+         if (!isInROI(i)) continue;
         const lum=0.2126*data[i]+0.7152*data[i+1]+0.0722*data[i+2];
         const val=lum>=threshold?255:0;
         if(grayscale || threshold!==128){ data[i]=data[i+1]=data[i+2]=val; }
@@ -273,7 +330,11 @@ export default function ProcessingWorkspaceClean() {
   useEffect(() => { redrawCanvases(); }, [grayscale, threshold, blur, resizePercent, rotation, flipH, flipV, normalize, equalize, segmentationRGB, redrawCanvases]);
 
   // -------------------- Pan / Zoom --------------------
-  const onPanMouseDown = e => { isPanningRef.current=true; panStartRef.current={x:e.clientX-pan.x, y:e.clientY-pan.y}; };
+  const onPanMouseDown = e => {
+      if (roiMode) return;   
+     isPanningRef.current=true; 
+     panStartRef.current={x:e.clientX-pan.x, y:e.clientY-pan.y};
+     };
   const onPanMouseMove = e => { if(!isPanningRef.current) return; setPan({x:e.clientX-panStartRef.current.x, y:e.clientY-panStartRef.current.y}); };
   const onPanMouseUp = () => { isPanningRef.current=false; };
   useEffect(()=>{ window.addEventListener("mousemove",onPanMouseMove); window.addEventListener("mouseup",onPanMouseUp); return ()=>{ window.removeEventListener("mousemove",onPanMouseMove); window.removeEventListener("mouseup",onPanMouseUp); }; });
@@ -282,7 +343,21 @@ export default function ProcessingWorkspaceClean() {
   const resetView = () => { setZoom(1); setPan({x:0,y:0}); };
 
   // -------------------- ROI --------------------
-  const onRoiMouseDown = e => { if(e.button!==0) return; const el=processedCanvasRef.current; if(!el) return; const rect=el.getBoundingClientRect(); roiDragRef.current=true; roiStartRef.current={x:e.clientX-rect.left, y:e.clientY-rect.top}; };
+  const onRoiMouseDown = e => {
+  if (!roiMode) return;
+  if (e.button !== 0) return;
+
+  const el = processedCanvasRef.current;
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+  roiDragRef.current = true;
+  roiStartRef.current = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+};
+
   const onRoiMouseMove = e => { if(!roiDragRef.current) return; const el=processedCanvasRef.current; if(!el) return; const rect=el.getBoundingClientRect(); const x=e.clientX-rect.left; const y=e.clientY-rect.top; const sx=roiStartRef.current.x; const sy=roiStartRef.current.y; setRoi({x:Math.min(sx,x), y:Math.min(sy,y), w:Math.abs(x-sx), h:Math.abs(y-sy)}); };
   const onRoiMouseUp = () => { if(!roiDragRef.current) return; roiDragRef.current=false; pushStateToUndo(); };
 
@@ -341,216 +416,473 @@ export default function ProcessingWorkspaceClean() {
   };
 
   // -------------------- UI --------------------
-  return (
-    <Container maxWidth="xl" sx={{ py:4 }}>
-      <Grid container spacing={3}>
-        {/* Left: Viewer */}
-        <Grid item xs={12} md={9}>
+//   return (
+//     <Container maxWidth="xl" sx={{ py:4 }}>
+//       <Grid container spacing={3}>
+//         {/* Left: Viewer */}
+//         <Grid item xs={12} md={9}>
+//           <Paper
+//             id="pv-container"
+//             onDrop={onDrop}
+//             onDragOver={onDragOver}
+//             sx={{ height:"78vh", minHeight:540, position:"relative", overflow:"hidden", borderRadius:2, p:0 }}
+//             elevation={3}
+//           >
+//             <Box sx={{ position:"absolute", right:12, top:12, zIndex:20 }}>
+//               <Stack direction="row" spacing={1}>
+//                 <Tooltip title="Zoom out"><IconButton onClick={()=>setZoom(z=>Math.max(0.25,+(z-0.25).toFixed(2)))} size="small"><ZoomOutIcon/></IconButton></Tooltip>
+//                 <Tooltip title="Zoom in"><IconButton onClick={()=>setZoom(z=>Math.min(4,+(z+0.25).toFixed(2)))} size="small"><ZoomInIcon/></IconButton></Tooltip>
+//                 <Tooltip title="Reset view"><IconButton onClick={resetView} size="small"><OpenInFullIcon/></IconButton></Tooltip>
+//                 <Divider orientation="vertical" flexItem sx={{mx:0.5}}/>
+//                 <Tooltip title="Undo"><IconButton onClick={handleUndo} size="small"><UndoIcon/></IconButton></Tooltip>
+//                 <Tooltip title="Redo"><IconButton onClick={handleRedo} size="small"><RedoIcon/></IconButton></Tooltip>
+//                 <Tooltip title="Reset settings"><IconButton onClick={handleReset} size="small"><RefreshIcon/></IconButton></Tooltip>
+//                 <Tooltip title="Download"><IconButton onClick={handleDownload} size="small"><DownloadIcon/></IconButton></Tooltip>
+//               </Stack>
+//             </Box>
+
+//             <Box sx={{ width:"100%", height:"100%", position:"relative", background:"linear-gradient(180deg, #fff 0%, #f8fafc 100%)" }} onWheel={handleWheel}>
+//               <div style={{ transform:`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin:"0 0", width:"max-content", height:"max-content", position:"absolute", left:0, top:0, cursor:isPanningRef.current?"grabbing":"grab" }} onMouseDown={onPanMouseDown}>
+//                 <div style={{ display:"inline-block", verticalAlign:"top" }}>
+//                   <Typography variant="caption" sx={{ml:2}}>Original</Typography>
+//                   <canvas ref={originalCanvasRef} style={{ display:"block", margin:8, background:"#fff", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.06)" }}/>
+//                 </div>
+//                 <div style={{ display:"inline-block", verticalAlign:"top", position:"relative" }}>
+//                   <Typography variant="caption" sx={{ml:2}}>Traité</Typography>
+//                   <div style={{ position:"relative", display:"inline-block" }}>
+//                     <canvas ref={processedCanvasRef} 
+//                     onMouseDown={onRoiMouseDown} 
+//                     onMouseMove={onRoiMouseMove} onMouseUp={onRoiMouseUp} 
+//                     style={
+//                       { display:"block", margin:8, background:"#fff", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.06)", userSelect:"none" }
+//                       }/>
+//                     {roi && <div style={{ position:"absolute", left:`${roi.x}px`, top:`${roi.y}px`, width:`${roi.w}px`, height:`${roi.h}px`, border:"2px dashed rgba(255,165,0,0.95)", background:"rgba(255,165,0,0.08)", pointerEvents:"none"}}/>}
+//                   </div>
+//                 </div>
+//               </div>
+//             </Box>
+//           </Paper>
+//           <Box sx={{mt:2, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+//             <Typography variant="body2" color="text.secondary">Glisser-déposer ou uploader une image. Ctrl+Molette pour zoom.</Typography>
+//             <Stack direction="row" spacing={1} alignItems="center">
+//               <ImageIcon fontSize="small"/>
+//               <Typography variant="body2" color="text.secondary">{imageSrc?"Image chargée":"Aucune image"}</Typography>
+//             </Stack>
+//           </Box>
+//         </Grid>
+
+//         {/* Right: Controls */}
+//         <Grid item xs={12} md={3}>
+//           <Paper sx={{p:2, borderRadius:2}} elevation={3}>
+//             <Typography variant="h6" gutterBottom>Prétraitement</Typography>
+//             <Stack spacing={2}>
+//               <div>
+//                 <label htmlFor="file-input" style={{display:"inline-block"}}>
+//                   <input id="file-input" type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files && e.target.files[0]; handleFile(f);}}/>
+//                   <Button variant="outlined" component="span" fullWidth>Upload image</Button>
+//                 </label>
+//               </div>
+
+//               <Divider/>
+
+//               {/* Grayscale */}
+//               <Stack direction="row" justifyContent="space-between" alignItems="center">
+//                 <Typography variant="subtitle2">Grayscale</Typography>
+//                 <Button size="small" variant={grayscale?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setGrayscale(g=>!g);}}> {grayscale?"On":"Off"} </Button>
+//               </Stack>
+
+//               {/* Threshold */}
+//               <Typography variant="subtitle2">Threshold</Typography>
+//               <Slider value={threshold} min={0} max={255} onChange={(e,v)=>setThreshold(v)} valueLabelDisplay="auto"/>
+
+
+//               {/* Resize */}
+//               <Typography variant="subtitle2">Resize (%)</Typography>
+//               <Slider value={resizePercent} min={10} max={200} onChange={(e,v)=>setResizePercent(v)} valueLabelDisplay="auto"/>
+
+//               {/* Rotation & Flip */}
+//               <Typography variant="subtitle2">Rotation (°)</Typography>
+//               <Stack direction="row" spacing={1}>
+//                 <Button size="small" variant="outlined" onClick={()=>{pushStateToUndo(); setRotation(r=>(r-90)%360)}}>⟲</Button>
+//                 <Button size="small" variant="outlined" onClick={()=>{pushStateToUndo(); setRotation(r=>(r+90)%360)}}>⟳</Button>
+//                 <Typography sx={{ml:1}}>{rotation}°</Typography>
+//               </Stack>
+//               <Stack direction="row" spacing={1} sx={{mt:1}}>
+//                 <Button size="small" variant={flipH?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setFlipH(f=>!f)}}>Flip H</Button>
+//                 <Button size="small" variant={flipV?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setFlipV(f=>!f)}}>Flip V</Button>
+//               </Stack>
+
+//               {/* Normalize / Equalize / Segmentation */}
+//              {/* Normalize */}
+// <Stack direction="row" justifyContent="space-between">
+//   <Typography variant="subtitle2">Normalisation</Typography>
+//   <Button
+//     size="small"
+//     variant={normalize ? "contained" : "outlined"}
+//     onClick={() => {
+//       pushStateToUndo();
+//       setNormalize(v => !v);
+//     }}
+//   >
+//     {normalize ? "On" : "Off"}
+//   </Button>
+// </Stack>
+
+// {/* Histogram Stretch */}
+// <Stack direction="row" justifyContent="space-between">
+//   <Typography variant="subtitle2">Étirement</Typography>
+//   <Button
+//     size="small"
+//     variant={histStretch ? "contained" : "outlined"}
+//     onClick={() => {
+//       pushStateToUndo();
+//       setHistStretch(v => !v);
+//     }}
+//   >
+//     {histStretch ? "On" : "Off"}
+//   </Button>
+// </Stack>
+
+// {/* Equalization */}
+// <Stack direction="row" justifyContent="space-between">
+//   <Typography variant="subtitle2">Égalisation</Typography>
+//   <Button
+//     size="small"
+//     variant={equalize ? "contained" : "outlined"}
+//     onClick={() => {
+//       pushStateToUndo();
+//       setEqualize(v => !v);
+//     }}
+//   >
+//     {equalize ? "On" : "Off"}
+//   </Button>
+// </Stack>
+
+// {/* Segmentation RGB */}
+// <Stack direction="row" justifyContent="space-between">
+//   <Typography variant="subtitle2">Segmentation RGB</Typography>
+//   <Button
+//     size="small"
+//     variant={segmentationRGB ? "contained" : "outlined"}
+//     onClick={() => {
+//       pushStateToUndo();
+//       setSegmentationRGB(v => !v);
+//     }}
+//   >
+//     {segmentationRGB ? "On" : "Off"}
+//   </Button>
+// </Stack>
+
+
+
+
+              
+
+//               {/* ROI */}
+//               <Stack direction="row" justifyContent="space-between" alignItems="center">
+//                 <Typography variant="subtitle2">ROI</Typography>
+//                 <Button
+//                   size="small"
+//                   variant={roiMode ? "contained" : "outlined"}
+//                   onClick={() => setRoiMode(v => !v)}
+//                 >
+//                   Draw ROI
+//                 </Button>
+
+//               </Stack>
+
+//               <Divider/>
+
+//               <Stack direction="row" spacing={1} justifyContent="space-between">
+//                 <Button startIcon={<UndoIcon/>} onClick={handleUndo}>Undo</Button>
+//                 <Button startIcon={<RedoIcon/>} onClick={handleRedo}>Redo</Button>
+//                 <Button startIcon={<RefreshIcon/>} onClick={handleReset}>Reset</Button>
+//               </Stack>
+
+//               <Button startIcon={<DownloadIcon/>} variant="contained" onClick={handleDownload} sx={{mt:1}}>Télécharger</Button>
+//               <Button variant="contained" color="primary" sx={{mt:1}} onClick={goHistogram}>Voir Histogramme</Button>
+//               <Typography variant="subtitle1">Filtres :</Typography>
+              
+//              <Button
+//   variant="contained"
+//   onClick={() =>
+//     navigate("/blur-filters", {
+//       state: {
+//         image: imageSrc,           // DataURL du canvas traité
+//         filename: images[selectedImage]?.name // nom du fichier pour le backend
+//       }
+//     })
+//   }
+// >
+//   Blur filters
+// </Button>
+
+              
+//               <Button
+//   variant="contained"
+//   color="secondary"
+//   onClick={() =>
+//     navigate("/edge-filters", {
+//       state: {
+//         image: imageSrc,
+//         filename: images[selectedImage]?.name
+//       }
+//     })
+//   }
+// >
+//   Edge filters
+// </Button>
+
+              
+//             </Stack>
+//           </Paper>
+//         </Grid>
+//       </Grid>
+//     </Container>
+//   );
+// }
+ return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f7fa' }}>
+      {/* Main Content Area */}
+      <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
+        <Container maxWidth="xl">
+          {/* Viewer */}
           <Paper
             id="pv-container"
             onDrop={onDrop}
             onDragOver={onDragOver}
-            sx={{ height:"78vh", minHeight:540, position:"relative", overflow:"hidden", borderRadius:2, p:0 }}
+            sx={{ 
+              height: "78vh", 
+              minHeight: 540, 
+              position: "relative", 
+              overflow: "hidden", 
+              borderRadius: 2, 
+              p: 0,
+              mb: 2
+            }}
             elevation={3}
           >
-            <Box sx={{ position:"absolute", right:12, top:12, zIndex:20 }}>
+            <Box sx={{ position: "absolute", right: 12, top: 12, zIndex: 20 }}>
               <Stack direction="row" spacing={1}>
-                <Tooltip title="Zoom out"><IconButton onClick={()=>setZoom(z=>Math.max(0.25,+(z-0.25).toFixed(2)))} size="small"><ZoomOutIcon/></IconButton></Tooltip>
-                <Tooltip title="Zoom in"><IconButton onClick={()=>setZoom(z=>Math.min(4,+(z+0.25).toFixed(2)))} size="small"><ZoomInIcon/></IconButton></Tooltip>
-                <Tooltip title="Reset view"><IconButton onClick={resetView} size="small"><OpenInFullIcon/></IconButton></Tooltip>
-                <Divider orientation="vertical" flexItem sx={{mx:0.5}}/>
-                <Tooltip title="Undo"><IconButton onClick={handleUndo} size="small"><UndoIcon/></IconButton></Tooltip>
-                <Tooltip title="Redo"><IconButton onClick={handleRedo} size="small"><RedoIcon/></IconButton></Tooltip>
-                <Tooltip title="Reset settings"><IconButton onClick={handleReset} size="small"><RefreshIcon/></IconButton></Tooltip>
-                <Tooltip title="Download"><IconButton onClick={handleDownload} size="small"><DownloadIcon/></IconButton></Tooltip>
+                <Tooltip title="Zoom out"><IconButton onClick={() => setZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))} size="small"><ZoomOutIcon /></IconButton></Tooltip>
+                <Tooltip title="Zoom in"><IconButton onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} size="small"><ZoomInIcon /></IconButton></Tooltip>
+                <Tooltip title="Reset view"><IconButton onClick={resetView} size="small"><OpenInFullIcon /></IconButton></Tooltip>
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                <Tooltip title="Undo"><IconButton onClick={handleUndo} size="small"><UndoIcon /></IconButton></Tooltip>
+                <Tooltip title="Redo"><IconButton onClick={handleRedo} size="small"><RedoIcon /></IconButton></Tooltip>
+                <Tooltip title="Reset settings"><IconButton onClick={handleReset} size="small"><RefreshIcon /></IconButton></Tooltip>
+                <Tooltip title="Download"><IconButton onClick={handleDownload} size="small"><DownloadIcon /></IconButton></Tooltip>
               </Stack>
             </Box>
 
-            <Box sx={{ width:"100%", height:"100%", position:"relative", background:"linear-gradient(180deg, #fff 0%, #f8fafc 100%)" }} onWheel={handleWheel}>
-              <div style={{ transform:`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin:"0 0", width:"max-content", height:"max-content", position:"absolute", left:0, top:0, cursor:isPanningRef.current?"grabbing":"grab" }} onMouseDown={onPanMouseDown}>
-                <div style={{ display:"inline-block", verticalAlign:"top" }}>
-                  <Typography variant="caption" sx={{ml:2}}>Original</Typography>
-                  <canvas ref={originalCanvasRef} style={{ display:"block", margin:8, background:"#fff", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.06)" }}/>
+            <Box sx={{ width: "100%", height: "100%", position: "relative", background: "linear-gradient(180deg, #fff 0%, #f8fafc 100%)" }} onWheel={handleWheel}>
+              <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0", width: "max-content", height: "max-content", position: "absolute", left: 0, top: 0, cursor: isPanningRef.current ? "grabbing" : "grab" }} onMouseDown={onPanMouseDown}>
+                <div style={{ display: "inline-block", verticalAlign: "top" }}>
+                  <Typography variant="caption" sx={{ ml: 2 }}>Original</Typography>
+                  <canvas ref={originalCanvasRef} style={{ display: "block", margin: 8, background: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }} />
                 </div>
-                <div style={{ display:"inline-block", verticalAlign:"top", position:"relative" }}>
-                  <Typography variant="caption" sx={{ml:2}}>Traité</Typography>
-                  <div style={{ position:"relative", display:"inline-block" }}>
-                    <canvas ref={processedCanvasRef} onMouseDown={onRoiMouseDown} onMouseMove={onRoiMouseMove} onMouseUp={onRoiMouseUp} style={{ display:"block", margin:8, background:"#fff", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.06)", userSelect:"none" }}/>
-                    {roi && <div style={{ position:"absolute", left:`${roi.x}px`, top:`${roi.y}px`, width:`${roi.w}px`, height:`${roi.h}px`, border:"2px dashed rgba(255,165,0,0.95)", background:"rgba(255,165,0,0.08)", pointerEvents:"none"}}/>}
+                <div style={{ display: "inline-block", verticalAlign: "top", position: "relative" }}>
+                  <Typography variant="caption" sx={{ ml: 2 }}>Traité</Typography>
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <canvas ref={processedCanvasRef}
+                      onMouseDown={onRoiMouseDown}
+                      onMouseMove={onRoiMouseMove} onMouseUp={onRoiMouseUp}
+                      style={
+                        { display: "block", margin: 8, background: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.06)", userSelect: "none" }
+                      } />
+                    {roi && <div style={{ position: "absolute", left: `${roi.x}px`, top: `${roi.y}px`, width: `${roi.w}px`, height: `${roi.h}px`, border: "2px dashed rgba(255,165,0,0.95)", background: "rgba(255,165,0,0.08)", pointerEvents: "none" }} />}
                   </div>
                 </div>
               </div>
             </Box>
           </Paper>
-          <Box sx={{mt:2, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+          
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="body2" color="text.secondary">Glisser-déposer ou uploader une image. Ctrl+Molette pour zoom.</Typography>
             <Stack direction="row" spacing={1} alignItems="center">
-              <ImageIcon fontSize="small"/>
-              <Typography variant="body2" color="text.secondary">{imageSrc?"Image chargée":"Aucune image"}</Typography>
+              <ImageIcon fontSize="small" />
+              <Typography variant="body2" color="text.secondary">{imageSrc ? "Image chargée" : "Aucune image"}</Typography>
             </Stack>
           </Box>
-        </Grid>
+        </Container>
+      </Box>
 
-        {/* Right: Controls */}
-        <Grid item xs={12} md={3}>
-          <Paper sx={{p:2, borderRadius:2}} elevation={3}>
-            <Typography variant="h6" gutterBottom>Prétraitement</Typography>
-            <Stack spacing={2}>
-              <div>
-                <label htmlFor="file-input" style={{display:"inline-block"}}>
-                  <input id="file-input" type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files && e.target.files[0]; handleFile(f);}}/>
-                  <Button variant="outlined" component="span" fullWidth>Upload image</Button>
-                </label>
-              </div>
+      {/* Right Sidebar - Fixed width */}
+      <Paper 
+        sx={{ 
+          width: 320, 
+          flexShrink: 0,
+          p: 2.5, 
+          borderRadius: 0,
+          borderLeft: '1px solid',
+          borderColor: 'divider',
+          overflowY: 'auto',
+          maxHeight: '100vh'
+        }} 
+        elevation={0}
+      >
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2.5 }}>
+          Prétraitement
+        </Typography>
+        <Stack spacing={2.5}>
+          <div>
+            <label htmlFor="file-input" style={{ display: "inline-block", width: '100%' }}>
+              <input id="file-input" type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files && e.target.files[0]; handleFile(f); }} />
+              <Button variant="outlined" component="span" fullWidth>Upload image</Button>
+            </label>
+          </div>
 
-              <Divider/>
+          <Divider />
 
-              {/* Grayscale */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle2">Grayscale</Typography>
-                <Button size="small" variant={grayscale?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setGrayscale(g=>!g);}}> {grayscale?"On":"Off"} </Button>
-              </Stack>
+          {/* Grayscale */}
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="subtitle2">Grayscale</Typography>
+            <Button size="small" variant={grayscale ? "contained" : "outlined"} onClick={() => { pushStateToUndo(); setGrayscale(g => !g); }}> {grayscale ? "On" : "Off"} </Button>
+          </Stack>
 
-              {/* Threshold */}
-              <Typography variant="subtitle2">Threshold</Typography>
-              <Slider value={threshold} min={0} max={255} onChange={(e,v)=>setThreshold(v)} valueLabelDisplay="auto"/>
+          {/* Threshold */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Threshold</Typography>
+            <Slider value={threshold} min={0} max={255} onChange={(e, v) => setThreshold(v)} valueLabelDisplay="auto" />
+          </Box>
 
+          {/* Resize */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Resize (%)</Typography>
+            <Slider value={resizePercent} min={10} max={200} onChange={(e, v) => setResizePercent(v)} valueLabelDisplay="auto" />
+          </Box>
 
-              {/* Resize */}
-              <Typography variant="subtitle2">Resize (%)</Typography>
-              <Slider value={resizePercent} min={10} max={200} onChange={(e,v)=>setResizePercent(v)} valueLabelDisplay="auto"/>
-
-              {/* Rotation & Flip */}
-              <Typography variant="subtitle2">Rotation (°)</Typography>
-              <Stack direction="row" spacing={1}>
-                <Button size="small" variant="outlined" onClick={()=>{pushStateToUndo(); setRotation(r=>(r-90)%360)}}>⟲</Button>
-                <Button size="small" variant="outlined" onClick={()=>{pushStateToUndo(); setRotation(r=>(r+90)%360)}}>⟳</Button>
-                <Typography sx={{ml:1}}>{rotation}°</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} sx={{mt:1}}>
-                <Button size="small" variant={flipH?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setFlipH(f=>!f)}}>Flip H</Button>
-                <Button size="small" variant={flipV?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setFlipV(f=>!f)}}>Flip V</Button>
-              </Stack>
-
-              {/* Normalize / Equalize / Segmentation */}
-             {/* Normalize */}
-<Stack direction="row" justifyContent="space-between">
-  <Typography variant="subtitle2">Normalisation</Typography>
-  <Button
-    size="small"
-    variant={normalize ? "contained" : "outlined"}
-    onClick={() => {
-      pushStateToUndo();
-      setNormalize(v => !v);
-    }}
-  >
-    {normalize ? "On" : "Off"}
-  </Button>
-</Stack>
-
-{/* Histogram Stretch */}
-<Stack direction="row" justifyContent="space-between">
-  <Typography variant="subtitle2">Étirement</Typography>
-  <Button
-    size="small"
-    variant={histStretch ? "contained" : "outlined"}
-    onClick={() => {
-      pushStateToUndo();
-      setHistStretch(v => !v);
-    }}
-  >
-    {histStretch ? "On" : "Off"}
-  </Button>
-</Stack>
-
-{/* Equalization */}
-<Stack direction="row" justifyContent="space-between">
-  <Typography variant="subtitle2">Égalisation</Typography>
-  <Button
-    size="small"
-    variant={equalize ? "contained" : "outlined"}
-    onClick={() => {
-      pushStateToUndo();
-      setEqualize(v => !v);
-    }}
-  >
-    {equalize ? "On" : "Off"}
-  </Button>
-</Stack>
-
-{/* Segmentation RGB */}
-<Stack direction="row" justifyContent="space-between">
-  <Typography variant="subtitle2">Segmentation RGB</Typography>
-  <Button
-    size="small"
-    variant={segmentationRGB ? "contained" : "outlined"}
-    onClick={() => {
-      pushStateToUndo();
-      setSegmentationRGB(v => !v);
-    }}
-  >
-    {segmentationRGB ? "On" : "Off"}
-  </Button>
-</Stack>
-
-
-
-
-              
-
-              {/* ROI */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle2">ROI</Typography>
-                <Button size="small" variant={roi?"contained":"outlined"} onClick={()=>{pushStateToUndo(); setRoi(null)}}>Clear</Button>
-              </Stack>
-
-              <Divider/>
-
-              <Stack direction="row" spacing={1} justifyContent="space-between">
-                <Button startIcon={<UndoIcon/>} onClick={handleUndo}>Undo</Button>
-                <Button startIcon={<RedoIcon/>} onClick={handleRedo}>Redo</Button>
-                <Button startIcon={<RefreshIcon/>} onClick={handleReset}>Reset</Button>
-              </Stack>
-
-              <Button startIcon={<DownloadIcon/>} variant="contained" onClick={handleDownload} sx={{mt:1}}>Télécharger</Button>
-              <Button variant="contained" color="primary" sx={{mt:1}} onClick={goHistogram}>Voir Histogramme</Button>
-              <Typography variant="subtitle1">Filtres :</Typography>
-              
-             <Button
-  variant="contained"
-  onClick={() =>
-    navigate("/blur-filters", {
-      state: {
-        image: imageSrc,           // DataURL du canvas traité
-        filename: images[selectedImage]?.name // nom du fichier pour le backend
-      }
-    })
-  }
->
-  Blur filters
-</Button>
-
-              
-              <Button
-  variant="contained"
-  color="secondary"
-  onClick={() =>
-    navigate("/edge-filters", {
-      state: {
-        image: imageSrc,
-        filename: images[selectedImage]?.name
-      }
-    })
-  }
->
-  Edge filters
-</Button>
-
-              
+          {/* Rotation & Flip */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Rotation (°)</Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button size="small" variant="outlined" onClick={() => { pushStateToUndo(); setRotation(r => (r - 90) % 360) }}>⟲</Button>
+              <Button size="small" variant="outlined" onClick={() => { pushStateToUndo(); setRotation(r => (r + 90) % 360) }}>⟳</Button>
+              <Typography sx={{ ml: 1 }}>{rotation}°</Typography>
             </Stack>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <Button size="small" variant={flipH ? "contained" : "outlined"} onClick={() => { pushStateToUndo(); setFlipH(f => !f) }}>Flip H</Button>
+              <Button size="small" variant={flipV ? "contained" : "outlined"} onClick={() => { pushStateToUndo(); setFlipV(f => !f) }}>Flip V</Button>
+            </Stack>
+          </Box>
+
+          {/* Normalize */}
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="subtitle2">Normalisation</Typography>
+            <Button
+              size="small"
+              variant={normalize ? "contained" : "outlined"}
+              onClick={() => {
+                pushStateToUndo();
+                setNormalize(v => !v);
+              }}
+            >
+              {normalize ? "On" : "Off"}
+            </Button>
+          </Stack>
+
+          {/* Histogram Stretch */}
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="subtitle2">Étirement</Typography>
+            <Button
+              size="small"
+              variant={histStretch ? "contained" : "outlined"}
+              onClick={() => {
+                pushStateToUndo();
+                setHistStretch(v => !v);
+              }}
+            >
+              {histStretch ? "On" : "Off"}
+            </Button>
+          </Stack>
+
+          {/* Equalization */}
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="subtitle2">Égalisation</Typography>
+            <Button
+              size="small"
+              variant={equalize ? "contained" : "outlined"}
+              onClick={() => {
+                pushStateToUndo();
+                setEqualize(v => !v);
+              }}
+            >
+              {equalize ? "On" : "Off"}
+            </Button>
+          </Stack>
+
+          {/* Segmentation RGB */}
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="subtitle2">Segmentation RGB</Typography>
+            <Button
+              size="small"
+              variant={segmentationRGB ? "contained" : "outlined"}
+              onClick={() => {
+                pushStateToUndo();
+                setSegmentationRGB(v => !v);
+              }}
+            >
+              {segmentationRGB ? "On" : "Off"}
+            </Button>
+          </Stack>
+
+          {/* ROI */}
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="subtitle2">ROI</Typography>
+            <Button
+              size="small"
+              variant={roiMode ? "contained" : "outlined"}
+              onClick={() => setRoiMode(v => !v)}
+            >
+              Draw ROI
+            </Button>
+          </Stack>
+
+          <Divider />
+
+          <Stack direction="row" spacing={1} justifyContent="space-between">
+            <Button startIcon={<UndoIcon />} onClick={handleUndo}>Undo</Button>
+            <Button startIcon={<RedoIcon />} onClick={handleRedo}>Redo</Button>
+            <Button startIcon={<RefreshIcon />} onClick={handleReset}>Reset</Button>
+          </Stack>
+
+          <Button startIcon={<DownloadIcon />} variant="contained" onClick={handleDownload}>Télécharger</Button>
+          <Button variant="contained" color="primary" onClick={goHistogram}>Voir Histogramme</Button>
+          
+          <Divider />
+          
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Filtres :</Typography>
+
+          <Button
+            variant="contained"
+            onClick={() =>
+              navigate("/blur-filters", {
+                state: {
+                  image: imageSrc,
+                  filename: images[selectedImage]?.name
+                }
+              })
+            }
+          >
+            Blur filters
+          </Button>
+
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() =>
+              navigate("/edge-filters", {
+                state: {
+                  image: imageSrc,
+                  filename: images[selectedImage]?.name
+                }
+              })
+            }
+          >
+            Edge filters
+          </Button>
+        </Stack>
+      </Paper>
+    </Box>
   );
 }
